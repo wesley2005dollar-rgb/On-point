@@ -344,7 +344,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 18 (everything nearby)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 19 (faster camera labels)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -912,7 +912,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       if(local.some(x=>x.name===name&&haversine(x,{lat,lng})<80))continue;
       local.push({type:'local',name,sub,icon,lat,lng,ele:null,hgt:4,rank:2});
     }
-    arLocal=local;arRoads=[...roads.values()];arRoadPickAt=0;
+    arLocal=local;arRoads=[...roads.values()];arRoadPickAt=0;arDataVer++;
   }
 
   async function arLoad(force){
@@ -927,6 +927,8 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       node["waterway"="waterfall"]["name"](around:${R2},${me.lat},${me.lng});
     );out body 600;`;
     arMsg('Finding what’s around you…');
+    // Nearby places and roads load at the same time, not after the big search
+    const localJob=arLoadLocal().then(()=>{if(arLocal.length||arRoads.length)arMsg('')}).catch(()=>toast('Couldn’t load nearby places'));
     try{
       const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
       const d=await r.json();
@@ -936,12 +938,12 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
         const sub=t.natural?(t.natural==='hill'?'Hill':'Peak'):t.place?t.place[0].toUpperCase()+t.place.slice(1):(t.tourism==='viewpoint'?'Lookout':'Waterfall');
         return {type,name:t.name,sub,lat:n.lat,lng:n.lon,ele,rank:t.place==='city'?0:t.place==='town'?1:t.natural?1:2};
       });
-      arFetchedAt={at:{lat:me.lat,lng:me.lng},range:arRangeMi};
-      arMsg(arPois.length?'':'Nothing named found in range — try a longer range');
+      arFetchedAt={at:{lat:me.lat,lng:me.lng},range:arRangeMi};arDataVer++;
+      if(arPois.length||arLocal.length)arMsg('');
       if(arPois.length)setTimeout(()=>arMsg(''),10);
     }catch(e){arMsg('Couldn’t load places — check your signal');setTimeout(()=>arMsg(''),3000)}
     if(arShow.tower)arLoadTowers(false);
-    try{await arLoadLocal();if(arLocal.length||arRoads.length)arMsg('')}catch(e){toast('Couldn’t load nearby places')}
+    await localJob;
   }
   async function arLoadTowers(force){
     if(!me)return;
@@ -951,7 +953,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     try{const d=await (await fetch(TOWER_URL+'?'+q)).json();
       arTowers=(d.features||[]).filter(f=>f.geometry).map(f=>{const a=f.attributes||{};
         return {type:'tower',name:pick(a,/licens|owner|entity|company/i)||'Cell tower',sub:'Cell tower',lat:f.geometry.y,lng:f.geometry.x,ele:null,rank:3}});
-      arTowersAt={lat:me.lat,lng:me.lng};
+      arTowersAt={lat:me.lat,lng:me.lng};arDataVer++;
     }catch(e){}
   }
   function arMsg(t){const m=$('arMsg');m.textContent=t;m.style.display=t?'block':'none'}
@@ -971,54 +973,81 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     const sc=Math.max(W/vw,H/vh),tx=Math.tan(vf.h*Math.PI/360)*(W/(vw*sc)),ty=Math.tan(vf.v*Math.PI/360)*(H/(vh*sc));
     return {tx:tx*arFovAdj,ty:ty*arFovAdj};
   }
+  // Distances/directions only change when YOU move, so work them out once per move
+  // instead of 60 times a second (this is what bogged down with lots of nearby places).
+  let arGeo=[],arGeoKey='',arDataVer=0,arLastDraw=0,arErrShown=false;
+  function arRebuild(h){
+    const key=`${me.lat.toFixed(5)},${me.lng.toFixed(5)}|${arDataVer}|${Object.entries(arShow).map(([k,v])=>v?k:'').join('')}|${arRangeMi}|${pins.length}`;
+    if(key===arGeoKey)return;
+    arGeoKey=key;
+    const max=arRangeMi*1609.34,list=[];
+    const add=p=>{
+      if(!p||typeof p.lat!=='number'||typeof p.lng!=='number'||!p.name)return;
+      const d=haversine(me,p);if(d>max||d<15)return;
+      list.push({p,d,brg:bearingTo(me,p),score:(p.rank||0)+Math.log10(d)});
+    };
+    if(arShow.peak||arShow.place||arShow.sight)arPois.forEach(p=>{if(arShow[p.type])add(p)});
+    if(arShow.local){
+      // nearest 300 is plenty for one screen
+      arLocal.map(p=>({p,d:haversine(me,p)})).sort((x,y)=>x.d-y.d).slice(0,300).forEach(x=>add(x.p));
+    }
+    if(arShow.pin)pins.forEach(p=>add({type:'pin',name:p.title||'Pin',sub:'Your pin',lat:p.lat,lng:p.lng,ele:null,rank:0,color:p.color,id:p.id}));
+    if(arShow.tower)arTowers.forEach(add);
+    arGeo=list;
+  }
+  // Reusable label elements (rebuilding them 60×/s also made taps miss)
+  const arPool=[];
+  function arTag(i){
+    if(!arPool[i]){const el=document.createElement('div');el.className='ar-tag';
+      el.innerHTML='<div class="pill"></div><div class="stem"></div><div class="dotp"></div>';$('arLabels').appendChild(el);arPool[i]=el}
+    return arPool[i];
+  }
   function arFrame(){
     if(!arOn)return;
     arRaf=requestAnimationFrame(arFrame);
-    const pose=arPose(),L=$('arLabels'),W=innerWidth,H=innerHeight;
-    if(!pose||!me){$('arHead').textContent='—';L.innerHTML='';
+    const now=performance.now();if(now-arLastDraw<33)return;arLastDraw=now;   // ~30 fps is plenty
+    try{arDraw(now)}catch(err){
+      if(!arErrShown){arErrShown=true;$('arSub').textContent='Label error: '+(err&&err.message||err)}
+    }
+  }
+  function arDraw(now){
+    const pose=arPose(),W=innerWidth,H=innerHeight;
+    if(!pose||!me){$('arHead').textContent='—';arPool.forEach(e=>e.style.display='none');
       arMsg(!me?'Waiting for your location…':'Turn on the compass: tap once and allow motion access');return}
     if($('arMsg').textContent.startsWith('Waiting')||$('arMsg').textContent.startsWith('Turn on'))arMsg('');
     const h=pose.heading;$('arHead').textContent=`${CARD[Math.round(h/22.5)%16]} ${Math.round(h)}°`;
-    $('arSub').textContent=Math.abs(pose.pitch)>60?'Hold the phone upright to look around':'Tap a label for details';
+    if(!arErrShown)$('arSub').textContent=Math.abs(pose.pitch)>60?'Hold the phone upright to look around':`${arStatus()} · tap a label`;
     const f=arFov(),r=Math.PI/180;
     const yFor=el=>H/2-Math.tan((el-pose.pitch)*r)/f.ty*(H/2);
     $('arHorizon').style.top=yFor(0)+'px';
-    const myAlt=me.alt;
-    const items=[];
-    const add=(p)=>{
-      const d=haversine(me,p);if(d>arRangeMi*1609.34||d<15)return;
-      const rel=angDiff(bearingTo(me,p),h);
-      if(Math.abs(rel)>=85)return;
-      const x=W/2+Math.tan(rel*r)/f.tx*(W/2);
-      if(x<-60||x>W+60)return;
-      let el=0;
-      if(p.ele!=null&&myAlt!=null){const drop=d*d/(2*6371000)*0.87;el=Math.atan2(p.ele-myAlt-drop,d)/r}
-      else if(p.hgt!=null)el=Math.atan2(p.hgt,d)/r;
-      items.push({p,d,x,y:yFor(el)});
+    arRebuild(h);
+    const myAlt=me.alt,items=[];
+    const place=(e)=>{
+      const rel=angDiff(e.brg,h);if(Math.abs(rel)>=80)return;
+      const x=W/2+Math.tan(rel*r)/f.tx*(W/2);if(x<-60||x>W+60)return;
+      const p=e.p;let el=0;
+      if(p.ele!=null&&myAlt!=null){const drop=e.d*e.d/(2*6371000)*0.87;el=Math.atan2(p.ele-myAlt-drop,e.d)/r}
+      else if(p.hgt!=null)el=Math.atan2(p.hgt,e.d)/r;
+      items.push({p,d:e.d,x,y:yFor(el),score:e.score});
     };
-    if(arShow.peak||arShow.place||arShow.sight)arPois.forEach(p=>{if(arShow[p.type])add(p)});
-    if(arShow.local)arLocal.forEach(add);
+    arGeo.forEach(place);
     if(arShow.road){
-      const now=performance.now();
-      if(now-arRoadPickAt>250){
-        arRoadPickAt=now;
+      if(now-arRoadPickAt>300){
+        arRoadPickAt=now;const max=arRangeMi*1609.34;
         arRoadPick=arRoads.map(rd=>{
-          let best=null,bs=1e9;
-          for(const q of rd.pts){const d=haversine(me,q);if(d<20||d>arRangeMi*1609.34)continue;
-            const rel=Math.abs(angDiff(bearingTo(me,q),h));const sc=rel+d/400;if(sc<bs){bs=sc;best=q}}
-          return best?{type:'road',name:rd.name,sub:rd.sub,icon:'🛣',lat:best.lat,lng:best.lng,ele:null,hgt:-1.5,rank:2}:null;
+          let best=null,bs=1e9,bd=0;
+          for(const q of rd.pts){const d=haversine(me,q);if(d<20||d>max)continue;
+            const sc=Math.abs(angDiff(bearingTo(me,q),h))+d/400;if(sc<bs){bs=sc;best=q;bd=d}}
+          return best?{p:{type:'road',name:rd.name,sub:rd.sub,icon:'🛣',lat:best.lat,lng:best.lng,ele:null,hgt:-1.5,rank:2},d:bd,brg:bearingTo(me,best),score:2+Math.log10(bd)}:null;
         }).filter(Boolean);
       }
-      arRoadPick.forEach(add);
+      arRoadPick.forEach(place);
     }
-    if(arShow.pin)pins.forEach(p=>add({type:'pin',name:p.title,sub:'Your pin',lat:p.lat,lng:p.lng,ele:null,rank:0,color:p.color,id:p.id}));
-    if(arShow.tower)arTowers.forEach(add);
-    // Most important first: your pins, big places, then nearer things
-    items.sort((a,b)=>(a.p.rank+Math.log10(a.d))-(b.p.rank+Math.log10(b.d)));
-    const placed=[],out=[];
+    items.sort((a,b)=>a.score-b.score);
+    const placed=[];let n=0;
     for(const it of items){
-      if(placed.length>=30)break;
-      const w=Math.max(70,Math.min(180,it.p.name.length*7.5+20)),hgt=40;
+      if(n>=30)break;
+      const w=Math.max(70,Math.min(190,String(it.p.name).length*7.5+24)),hgt=40;
       let top=it.y-24-hgt,ok=false;
       for(let lvl=0;lvl<5;lvl++){
         const box={l:it.x-w/2,r:it.x+w/2,t:top,b:top+hgt};
@@ -1026,17 +1055,24 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
         top-=hgt+6;
       }
       if(!ok)continue;
-      const stem=Math.max(8,it.y-(top+hgt));
-      const col=it.p.color?`style="border-left:4px solid ${it.p.color}"`:'';
-      out.push(`<div class="ar-tag" style="left:${it.x.toFixed(0)}px;top:${(top+hgt+stem+5).toFixed(0)}px" data-i="${items.indexOf(it)}">
-        <div class="pill" ${col}><b>${it.p.icon||AR_TYPES[it.p.type].icon} ${esc(it.p.name)}</b>${it.p.type==='local'||it.p.type==='road'?esc(it.p.sub)+' · ':''}${fmtDist(it.d)}${it.p.ele!=null?' · '+Math.round(it.p.ele*3.28084).toLocaleString()+' ft':''}</div>
-        <div class="stem" style="height:${stem.toFixed(0)}px"></div><div class="dotp"></div></div>`);
+      const stem=Math.max(8,it.y-(top+hgt)),el=arTag(n);
+      const p=it.p,sub=(p.type==='local'||p.type==='road')?esc(p.sub)+' · ':'';
+      const html=`<b>${p.icon||AR_TYPES[p.type].icon} ${esc(p.name)}</b>${sub}${fmtDist(it.d)}${p.ele!=null?' · '+Math.round(p.ele*3.28084).toLocaleString()+' ft':''}`;
+      const pill=el.firstChild;
+      if(pill._h!==html){pill.innerHTML=html;pill._h=html}
+      pill.style.borderLeft=p.color?`4px solid ${p.color}`:'';
+      el.children[1].style.height=stem.toFixed(0)+'px';
+      el.style.left=it.x.toFixed(0)+'px';el.style.top=(top+hgt+stem+5).toFixed(0)+'px';el.style.display='';
+      el._item=it;n++;
     }
-    arItems=items;
-    L.innerHTML=out.join('');
+    for(let i=n;i<arPool.length;i++)arPool[i].style.display='none';
+  }
+  function arStatus(){
+    const c=[];if(arPois.length)c.push(arPois.length+' places');if(arLocal.length)c.push(arLocal.length+' nearby');if(arRoads.length)c.push(arRoads.length+' roads');
+    return c.length?c.join(' · '):'Loading…';
   }
   let arItems=[];
-  $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t)return;const it=arItems[+t.dataset.i];if(!it)return;arDetails(it)};
+  $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t||!t._item)return;arDetails(t._item)};
   function arDetails(it){
     const p=it.p,b=bearingTo(me,p);
     closeAR();
@@ -1064,7 +1100,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   function closeAR(){
     arOn=false;cancelAnimationFrame(arRaf);$('ar').classList.remove('show');
     if(arStream){arStream.getTracks().forEach(t=>t.stop());arStream=null}
-    $('arVideo').srcObject=null;arMsg('');
+    $('arVideo').srcObject=null;arMsg('');arPool.forEach(e=>e.style.display='none');arErrShown=false;
   }
   $('arBtn').onclick=openAR;
   $('arClose').onclick=closeAR;
