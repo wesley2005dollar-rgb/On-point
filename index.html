@@ -114,7 +114,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .you-dot{width:18px;height:18px;border-radius:50%;background:var(--you);border:3px solid #fff;box-shadow:0 0 0 2px rgba(30,127,216,.35),0 1px 4px rgba(0,0,0,.4)}
 .you{position:relative;width:110px;height:110px;pointer-events:none}
 .you .you-dot{position:absolute;left:46px;top:46px}
-.you .arrow{position:absolute;left:39px;top:39px;width:32px;height:32px;display:none;transition:transform .2s linear;filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
+.you .arrow{position:absolute;left:39px;top:39px;width:32px;height:32px;display:none;transition:transform .15s linear;filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
 .you.moving .arrow{display:block}.you.moving .you-dot{display:none}
 .you .cone{position:absolute;left:0;top:0;width:110px;height:110px;display:none;transition:transform .12s linear}
 .you .cone.on{display:block}
@@ -307,7 +307,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 13 (gyro compass)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 15 (map-twist fix)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -489,7 +489,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     if(document.visibilityState==='hidden')hiddenAt=Date.now();
     else if(autoCal&&!calPending&&hiddenAt&&Date.now()-hiddenAt>10*60*1000)startAutoCal();
   });
-  function updateNeedle(){const b=canRotate?map.getBearing():0;$('needle').style.transform=`rotate(${b}deg)`;drawDirection();}
+  function updateNeedle(){$('needle').style.transform=`rotate(${spinTo('needle',screenNorth())}deg)`;drawDirection();}
   map.on('rotate',updateNeedle);
   // Standing or walking: compass (the way the phone points). Driving: the compass is thrown off by
   // the car's metal and the phone is sitting in a mount, so switch to GPS direction of travel.
@@ -505,18 +505,37 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   // the arrow (replaces the dot) = the last direction you traveled (GPS), kept when you stop.
   let moving=false,lastTravelH=null;
   try{const v=parseFloat(localStorage.getItem('onpoint.travelH'));if(isFinite(v))lastTravelH=v}catch(e){}
+  // Which way is north on the screen right now, measured straight from the map
+  // (so it's right no matter how the map is twisted)
+  function screenNorth(){
+    if(!canRotate)return 0;
+    try{
+      const c=me?L.latLng(me.lat,me.lng):map.getCenter();
+      const p1=map.latLngToContainerPoint(c),p2=map.latLngToContainerPoint(L.latLng(c.lat+0.001,c.lng));
+      const dx=p2.x-p1.x,dy=p2.y-p1.y;
+      if(Math.hypot(dx,dy)<0.5)return map.getBearing();
+      return Math.atan2(dx,-dy)*180/Math.PI;
+    }catch(e){return map.getBearing()}
+  }
+  // Turn by the short way: without this, crossing 359°→0° made the arrow spin a full circle
+  const spun={};
+  function spinTo(key,deg){
+    const prev=spun[key];
+    spun[key]=prev==null?deg:prev+(((deg-prev)%360+540)%360-180);
+    return spun[key];
+  }
   function drawDirection(){
     const el=meMarker&&meMarker.getElement();if(!el)return;
     const you=el.querySelector('.you'),cone=el.querySelector('.cone'),arrow=el.querySelector('.arrow');
-    const b=canRotate?map.getBearing():0;
+    const b=screenNorth();
     if(compassH==null)cone.classList.remove('on');
-    else{cone.classList.add('on');cone.style.transform=`rotate(${compassH+b}deg)`;}
+    else{cone.classList.add('on');cone.style.transform=`rotate(${spinTo('cone',compassH+b)}deg)`;}
     if(!moving&&gpsSpeed>=1.1)moving=true;else if(moving&&gpsSpeed<0.5)moving=false;
     // Only trust GPS direction while actually moving; when you stop, keep the last one
     if(moving&&gpsHeading!=null&&gpsHeading!==lastTravelH){lastTravelH=gpsHeading;try{localStorage.setItem('onpoint.travelH',String(lastTravelH))}catch(e){}}
     const show=lastTravelH!=null;
     you.classList.toggle('moving',show);
-    if(show)arrow.style.transform=`rotate(${lastTravelH+b}deg)`;
+    if(show)arrow.style.transform=`rotate(${spinTo('arrow',lastTravelH+b)}deg)`;
   }
   // Gyro-stabilized compass.
   // The magnetic compass alone is jittery and gets badly bent inside a car (steel body, electronics),
@@ -524,40 +543,63 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   // metal, so it tracks how the phone turns; the magnetic compass only supplies the starting
   // direction, and only when you're not in a vehicle. While driving (and for 2 min after a stop),
   // the beam runs on the gyro alone. GPS auto-calibration keeps it lined up with the real world.
-  let magH=null,relH=null,anchor=null,dispH=null,lastDriveAt=0;
+  let anchor=null,dispH=null,lastDriveAt=0,relAlpha=null,lastRel=null;
   const inVehicle=()=>Date.now()-lastDriveAt<120000;
-  function screenAngle(){return (screen.orientation&&screen.orientation.angle)||window.orientation||0}
+  function screenAngle(){
+    if(screen.orientation&&typeof screen.orientation.angle==='number')return screen.orientation.angle;
+    return typeof window.orientation==='number'?window.orientation:0;
+  }
+  // Where the phone is "looking", tilt- and rotation-proof:
+  // blend the direction the top of the SCREEN points (phone flat) with the direction the
+  // back camera points (phone upright). Built from the full 3-D orientation, so turning the
+  // screen sideways or holding the phone upright no longer flips or spins the heading.
+  function lookHeading(alpha,beta,gamma){
+    const r=Math.PI/180,ca=Math.cos(alpha*r),sa=Math.sin(alpha*r),cb=Math.cos(beta*r),sb=Math.sin(beta*r),cg=Math.cos(gamma*r),sg=Math.sin(gamma*r);
+    // Rotation matrix R = Rz(alpha)·Rx(beta)·Ry(gamma) (device → world, x=east y=north z=up)
+    const R=[
+      [ca*cg-sa*sb*sg, -sa*cb, ca*sg+sa*sb*cg],
+      [sa*cg+ca*sb*sg,  ca*cb, sa*sg-ca*sb*cg],
+      [-cb*sg,          sb,    cb*cg]];
+    const th=screenAngle()*r, up=[Math.sin(th),Math.cos(th),0], back=[0,0,-1];
+    const w=v=>[R[0][0]*v[0]+R[0][1]*v[1]+R[0][2]*v[2], R[1][0]*v[0]+R[1][1]*v[1]+R[1][2]*v[2]];
+    const u=w(up),k=w(back),vx=u[0]+k[0],vy=u[1]+k[1];
+    if(Math.hypot(vx,vy)<0.15)return null;           // pointing straight up/down: no direction
+    return (Math.atan2(vx,vy)/r+360)%360;
+  }
+  function flat(e){return Math.abs(e.beta)<60&&Math.abs(e.gamma)<60}
   function onOrient(e){
-    const ang=screenAngle();
-    // Magnetic (absolute) heading
-    if(typeof e.webkitCompassHeading==='number'&&e.webkitCompassHeading>=0)magH=(e.webkitCompassHeading+ang+360)%360;
-    else if((e.type==='deviceorientationabsolute'||e.absolute===true)&&typeof e.alpha==='number')magH=(360-e.alpha+ang+360)%360;
-    // Gyro (relative) heading — the plain deviceorientation event when it isn't absolute
-    if(e.type==='deviceorientation'&&e.absolute!==true&&typeof e.alpha==='number')relH=(360-e.alpha+ang+360)%360;
-
-    let fused;
-    if(relH!=null){
-      if(magH!=null){
-        const target=angDiff(magH,relH);
-        if(anchor==null)anchor=target;
-        else if(!inVehicle()){const d=angDiff(target,anchor);anchor+=d*(Math.abs(d)>40?0.01:0.03)}
-      }
-      if(anchor==null)return;
-      fused=(relH+anchor+360)%360;
+    if(typeof e.alpha!=='number'||typeof e.beta!=='number'||typeof e.gamma!=='number')return;
+    const isAbs=e.type==='deviceorientationabsolute'||e.absolute===true;
+    let target=null;   // how far the gyro frame is turned from true north (degrees)
+    if(!isAbs){
+      relAlpha=e.alpha;lastRel=e;
+      // iPhone: the same event also carries the magnetic compass for the top of the phone
+      if(typeof e.webkitCompassHeading==='number'&&e.webkitCompassHeading>=0&&flat(e))
+        target=angDiff(e.webkitCompassHeading,360-e.alpha);
     }else{
-      if(magH==null)return;
-      fused=magH;   // no gyro available: magnetic only
+      // Android: absolute and gyro events differ only by a turn around vertical — exact offset
+      if(relAlpha!=null)target=angDiff(relAlpha,e.alpha);
+      else{lastRel=e;anchor=0}                        // no gyro stream: use the absolute one directly
     }
+    if(target!=null){
+      if(anchor==null)anchor=target;
+      else if(!inVehicle()){const d=angDiff(target,anchor);anchor+=d*(Math.abs(d)>40?0.01:0.03)}
+    }
+    if(anchor==null||!lastRel)return;
+    const h=lookHeading(lastRel.alpha,lastRel.beta,lastRel.gamma);if(h==null)return;
+    const fused=(h+anchor+360)%360;
     compassRaw=fused;
-    const target=(fused+compassOffset+360)%360;
-    // Smooth out jitter without adding much lag
-    dispH=dispH==null?target:(dispH+angDiff(target,dispH)*(relH!=null?0.5:0.25)+360)%360;
-
+    const t=(fused+compassOffset+360)%360;
+    dispH=dispH==null?t:(dispH+angDiff(t,dispH)*0.5+360)%360;
     const now=performance.now();if(now-lastT<60)return;lastT=now;
     compassH=dispH;drawDirection();if(calTick)calTick();
-    if(headingOn){const t=currentHeading();
-      if(lastSet==null||Math.abs(((t-lastSet+540)%360)-180)>=2){lastSet=t;map.setBearing(-t)}}
+    if(headingOn){const hh=currentHeading();
+      if(hh!=null&&(lastSet==null||Math.abs(angDiff(hh,lastSet))>=2)){lastSet=hh;map.setBearing(-hh)}}
   }
+  // Screen turned sideways/back: resize the map and redraw arrows right away
+  function onRotateScreen(){setTimeout(()=>{map.invalidateSize();dispH=null;drawDirection()},250)}
+  window.addEventListener('orientationchange',onRotateScreen);
+  if(screen.orientation&&screen.orientation.addEventListener)screen.orientation.addEventListener('change',onRotateScreen);
   const needsPermission=typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function';
   async function enableCompass(loud){
     if(compassState==='on')return true;
