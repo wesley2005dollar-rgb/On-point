@@ -296,6 +296,8 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     openSheet(`<h2 id="sheetTitle">Map layers</h2>
       <div class="sec">Base map</div><div id="bases" role="radiogroup">${base}</div>
       <div class="sec">Overlays</div><div id="ovs">${ov}</div>
+      <div class="sec">Compass</div>
+      <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
@@ -305,8 +307,39 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       b.setAttribute('aria-pressed',layerState.on.includes(k));
       if(layerState.on.includes(k)&&(OVERLAYS[k].layer.options||{}).maxNativeZoom===7&&map.getZoom()>11)toast('Zoom out to see the temperature pattern');};
     $('doneB').onclick=closeSheet;
+    $('calOpen').onclick=showCalibrate;
   }
   $('layerBtn').onclick=showLayers;
+
+  let calTick=null;
+  function showCalibrate(){
+    enableCompass(true);
+    openSheet(`<h2 id="sheetTitle">Calibrate compass</h2>
+      <p class="fine" style="margin-top:4px">First, wave your phone in a slow figure‑8 a few times, away from cars and metal. Then fine‑tune with one of these.</p>
+      <div class="sec">Easiest: match to GPS</div>
+      <p class="fine" style="margin-top:0">Walk or ride in a straight line holding the phone pointed straight ahead, then tap the button. GPS knows your true direction, so the compass gets corrected to it.</p>
+      <div id="calLive" class="meta" style="margin:8px 0">Waiting for readings…</div>
+      <div class="row" style="margin-top:6px"><button class="b-flag" id="calGps">Match to GPS now</button></div>
+      <div class="sec">Or adjust by hand</div>
+      <p class="fine" style="margin-top:0">Point the phone at something you can see on the map (down a straight road, at a building), then slide until the orange beam points at it.</p>
+      <input type="range" id="calSlide" min="-90" max="90" step="1" value="${Math.round(compassOffset)}" style="width:100%;margin:10px 0" aria-label="Compass correction in degrees">
+      <div class="meta" id="calVal"></div>
+      <div class="row"><button class="b-ghost" id="calReset">Reset</button><button class="b-primary" id="calDone">Done</button></div>`);
+    const showVal=()=>{$('calVal').textContent=`Correction: ${compassOffset>0?'+':''}${Math.round(compassOffset)}°`;$('calSlide').value=Math.round(compassOffset)};
+    showVal();
+    calTick=()=>{const el=$('calLive');if(!el)return;
+      const g=(gpsSpeed>=1&&gpsHeading!=null)?Math.round(gpsHeading)+'°':'not moving';
+      el.textContent=`Compass: ${compassH==null?'—':Math.round(compassH)+'°'}   ·   GPS travel: ${g}`;};
+    calTick();
+    $('calSlide').oninput=e=>{setOffset(+e.target.value);showVal()};
+    $('calGps').onclick=()=>{
+      if(compassRaw==null){toast('No compass reading yet — allow motion access');return}
+      if(!(gpsSpeed>=1&&gpsHeading!=null)){toast('Start moving in a straight line first');return}
+      let off=((gpsHeading-compassRaw)%360+540)%360-180;setOffset(off);showVal();toast(`Corrected by ${Math.round(off)}°`);
+    };
+    $('calReset').onclick=()=>{setOffset(0);showVal();toast('Correction cleared')};
+    $('calDone').onclick=()=>{calTick=null;closeSheet()};
+  }
 
   const flagIcon=c=>L.divIcon({className:'flag-pin',iconSize:[28,40],iconAnchor:[5,38],popupAnchor:[8,-34],
     html:`<svg width="28" height="40" viewBox="0 0 28 40"><path d="M5 2v36" stroke="#1C252C" stroke-width="3" stroke-linecap="round"/><path d="M6 3h19l-5 7 5 7H6z" fill="${c}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="5" cy="38" r="2.2" fill="#1C252C"/></svg>`});
@@ -392,7 +425,15 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 
   // ---------- compass & rotation ----------
   // One compass reading feeds both the direction cone on your dot and heading-up mode.
-  let headingOn=false,compassH=null,compassState='off',lastT=0,lastSet=null;
+  let headingOn=false,compassH=null,compassRaw=null,compassState='off',lastT=0,lastSet=null;
+  // Calibration offset (degrees) added to the phone's compass, saved on this phone
+  let compassOffset=0;
+  try{const v=parseFloat(localStorage.getItem('onpoint.compassOffset'));if(isFinite(v))compassOffset=v}catch(e){}
+  function setOffset(v){
+    compassOffset=((v%360)+540)%360-180;
+    try{localStorage.setItem('onpoint.compassOffset',String(compassOffset))}catch(e){}
+    if(compassRaw!=null){compassH=(compassRaw+compassOffset+360)%360;drawDirection()}
+  }
   function updateNeedle(){const b=canRotate?map.getBearing():0;$('needle').style.transform=`rotate(${b}deg)`;drawDirection();}
   map.on('rotate',updateNeedle);
   // Standing or walking: compass (the way the phone points). Driving: the compass is thrown off by
@@ -430,7 +471,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     const ang=(screen.orientation&&screen.orientation.angle)||window.orientation||0;
     h=(h+ang+360)%360;
     const now=performance.now();if(now-lastT<80)return;lastT=now;
-    compassH=h;drawDirection();
+    compassRaw=h;compassH=(h+compassOffset+360)%360;drawDirection();if(calTick)calTick();
     if(headingOn){const t=currentHeading();
       if(lastSet==null||Math.abs(((t-lastSet+540)%360)-180)>=2){lastSet=t;map.setBearing(-t)}}
   }
