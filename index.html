@@ -245,6 +245,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <div class="ar-top"><div><div class="hd" id="arHead">—</div><div class="sub" id="arSub">Point your phone at what you want to know</div></div><button id="arReload" aria-label="Reload labels" style="margin-left:auto">↻</button><button id="arClose" aria-label="Close camera view" style="margin-left:0">✕</button></div>
   <div class="ar-bot">
     <div class="ar-chips" id="arChips"></div>
+    <div id="arDiag" style="font:12px/1.35 ui-monospace,Menlo,monospace;opacity:.85;margin-bottom:6px;white-space:pre-wrap"></div>
     <div class="ar-range"><span>Range</span><input type="range" id="arRange" min="1" max="60" step="1" value="25" aria-label="How far to show"><span id="arRangeV">25 mi</span></div>
   </div>
 </section>
@@ -419,7 +420,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 26 (road labels fix)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 26b (camera diagnostics)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -961,6 +962,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   }
   // ---- OpenStreetMap place data: several servers to try, plus saved copies for offline ----
   const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
+  let arLastErr='',arLastOk='';
   async function overpass(q,waitMs){
     let last;
     for(const url of OVERPASS){
@@ -971,8 +973,9 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
         if(!r.ok){last=new Error('server '+r.status);continue}
         const d=await r.json();
         if(d.remark&&/runtime error|timed out|out of memory/i.test(d.remark)&&!(d.elements||[]).length){last=new Error(d.remark);continue}
+        arLastOk=new URL(url).hostname+' '+new Date().toLocaleTimeString();arLastErr='';
         return d;
-      }catch(e){clearTimeout(tm);last=e}
+      }catch(e){clearTimeout(tm);last=e;arLastErr=new URL(url).hostname+': '+(e&&(e.name==='AbortError'?'timed out':e.message)||e)}
     }
     throw last||new Error('no server');
   }
@@ -1195,8 +1198,17 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       if(!arErrShown){arErrShown=true;$('arSub').textContent='Label error: '+(err&&err.message||err)}
     }
   }
+  function arDiag(pose,inView,shown){
+    const el=$('arDiag');if(!el)return;
+    el.textContent=`v26 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+`+
+      `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
+`+
+      `${navigator.onLine?'online':'OFFLINE'}${arLoading?' · loading '+Math.round((Date.now()-arLoadStart)/1000)+'s':''}${arLastOk?' · last ok '+arLastOk:''}${arLastErr?' · error '+arLastErr:''}`;
+  }
   function arDraw(now){
     const pose=arPose(),W=innerWidth,H=innerHeight;
+    if(!pose||!me)arDiag(pose,0,0);
     if(!pose||!me){$('arHead').textContent='—';arPool.forEach(e=>e.style.display='none');
       arMsg(!me?'Waiting for your location…':'Turn on the compass: tap once and allow motion access');return}
     if($('arMsg').textContent.startsWith('Waiting')||$('arMsg').textContent.startsWith('Turn on'))arMsg('');
@@ -1251,6 +1263,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       el._item=it;n++;
     }
     for(let i=n;i<arPool.length;i++)arPool[i].style.display='none';
+    arDiag(pose,items.length,n);
   }
   let arBusy='';
   function arStatus(){
