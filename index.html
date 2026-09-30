@@ -344,7 +344,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 17 (first-person view)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 18 (everything nearby)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -817,9 +817,11 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   // the height is known, how high above or below you it is.
   const AR_TYPES={
     peak:{label:'⛰ Peaks',icon:'⛰'},place:{label:'🏘 Towns',icon:'🏘'},
-    sight:{label:'👁 Lookouts & falls',icon:'👁'},pin:{label:'⚑ My pins',icon:'⚑'},tower:{label:'📡 Towers',icon:'📡'}};
+    sight:{label:'👁 Lookouts & falls',icon:'👁'},local:{label:'📍 Nearby places',icon:'📍'},road:{label:'🛣 Roads',icon:'🛣'},
+    pin:{label:'⚑ My pins',icon:'⚑'},tower:{label:'📡 Towers',icon:'📡'}};
+  let arLocal=[],arRoads=[],arRoadPick=[],arRoadPickAt=0;
   let arOn=false,arStream=null,arRaf=0,arPois=[],arFetchedAt=null,arTowers=[],arTowersAt=null,arFovAdj=1;
-  let arShow={peak:true,place:true,sight:true,pin:true,tower:false},arRangeMi=25;
+  let arShow={peak:true,place:true,sight:true,local:true,road:true,pin:true,tower:false},arRangeMi=25;
   try{const v=JSON.parse(localStorage.getItem('onpoint.ar'));if(v){Object.assign(arShow,v.show||{});if(v.range)arRangeMi=v.range}}catch(e){}
   function arSave(){try{localStorage.setItem('onpoint.ar',JSON.stringify({show:arShow,range:arRangeMi}))}catch(e){}}
   const bearingTo=(a,b)=>{const r=Math.PI/180,y=Math.sin((b.lng-a.lng)*r)*Math.cos(b.lat*r),
@@ -833,6 +835,85 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     b.setAttribute('aria-pressed',arShow[k]);arSave();if(k==='tower'&&arShow.tower)arLoadTowers(true)};
   $('arRange').oninput=e=>{arRangeMi=+e.target.value;$('arRangeV').textContent=arRangeMi+' mi';arSave()};
   $('arRange').onchange=()=>arLoad(true);
+
+  // What kind of thing is it? (icon + short description from OpenStreetMap tags)
+  function arClassify(t){
+    const a=t.amenity,title=v=>String(v).replace(/_/g,' ').replace(/^./,c=>c.toUpperCase());
+    if(a==='place_of_worship')return ['✝',t.religion==='christian'||!t.religion?'Church':'Place of worship'];
+    if(t.power)return ['⚡',t.power==='substation'?'Substation':title(t.power)];
+    if(a==='grave_yard'||t.landuse==='cemetery')return ['🪦','Cemetery'];
+    if(/^(school|college|university|kindergarten)$/.test(a))return ['🏫',title(a)];
+    if(a==='fire_station')return ['🚒','Fire station'];
+    if(a==='police')return ['🚓','Police'];
+    if(/^(hospital|clinic|doctors|pharmacy)$/.test(a))return ['🏥',title(a)];
+    if(a==='fuel')return ['⛽','Gas station'];
+    if(/^(restaurant|fast_food|cafe|bar|pub)$/.test(a))return ['🍴',title(a)];
+    if(a==='post_office')return ['📮','Post office'];
+    if(a==='library')return ['📚','Library'];
+    if(a==='townhall'||t.office==='government')return ['🏛','Government'];
+    if(a)return ['🏢',title(a)];
+    if(t.shop)return ['🏪',t.shop==='yes'?'Store':title(t.shop)];
+    if(t.leisure)return ['🌳',title(t.leisure)];
+    if(t.natural==='water'||t.water||t.waterway||t.landuse==='reservoir')return ['💧',t.waterway?title(t.waterway):'Water'];
+    if(t.natural==='wood'||t.landuse==='forest')return ['🌲','Woods'];
+    if(/^(farmland|farmyard|meadow|orchard)$/.test(t.landuse||''))return ['🌾','Farm'];
+    if(t.man_made)return ['🗼',title(t.man_made)];
+    if(t.historic)return ['🏛','Historic'];
+    if(t.tourism)return ['🏨',title(t.tourism)];
+    if(t.railway)return ['🚆',title(t.railway)];
+    if(t.aeroway)return ['✈','Airfield'];
+    if(t.landuse)return ['📍',title(t.landuse)];
+    if(t.building||t.office||t.craft)return ['🏠','Building'];
+    return ['📍','Place'];
+  }
+  function arRoadType(h){
+    if(/^(motorway|trunk)/.test(h))return 'Highway';
+    if(/^(primary|secondary)/.test(h))return 'Main road';
+    if(/^(tertiary|residential|unclassified|living_street)/.test(h))return 'Road';
+    if(/^(track|service)/.test(h))return 'Dirt / service road';
+    return 'Path';
+  }
+  async function overpass(q){
+    const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+    if(!r.ok)throw new Error('overpass '+r.status);
+    return r.json();
+  }
+  async function arLoadLocal(){
+    const R3=Math.round(Math.min(arRangeMi,2)*1609.34),R4=Math.round(Math.min(arRangeMi,1.5)*1609.34),c=`${me.lat},${me.lng}`;
+    const q=`[out:json][timeout:25];(
+      node["name"][!"highway"][!"place"][!"natural"](around:${R3},${c});
+      way["name"][!"highway"][!"place"](around:${R3},${c});
+      nwr["power"="substation"](around:${R3},${c});
+      nwr["amenity"="place_of_worship"](around:${R3},${c});
+    );out center 800;
+    way["highway"]["name"](around:${R4},${c});out geom 400;`;
+    const d=await overpass(q);
+    const local=[],roads=new Map();
+    for(const n of d.elements||[]){
+      const t=n.tags||{};
+      if(t.highway&&n.geometry){
+        if(!t.name)continue;
+        const key=t.name;let rd=roads.get(key);
+        if(!rd){rd={type:'road',name:t.name,sub:arRoadType(t.highway),icon:'🛣',rank:2,pts:[]};roads.set(key,rd)}
+        // Break the road into points every ~50 m so a label can sit wherever you're looking along it
+        const g=n.geometry;
+        for(let i=0;i<g.length;i++){
+          rd.pts.push({lat:g[i].lat,lng:g[i].lon});
+          if(i<g.length-1){const A={lat:g[i].lat,lng:g[i].lon},B={lat:g[i+1].lat,lng:g[i+1].lon},L=haversine(A,B),k=Math.floor(L/50);
+            for(let j=1;j<k;j++)rd.pts.push({lat:A.lat+(B.lat-A.lat)*j/k,lng:A.lng+(B.lng-A.lng)*j/k})}
+        }
+        continue;
+      }
+      const lat=n.lat??(n.center&&n.center.lat),lng=n.lon??(n.center&&n.center.lon);
+      if(lat==null||lng==null)continue;
+      if(t.boundary||t.route||t.admin_level)continue;
+      const [icon,sub]=arClassify(t);
+      const name=t.name||sub;
+      if(local.some(x=>x.name===name&&haversine(x,{lat,lng})<80))continue;
+      local.push({type:'local',name,sub,icon,lat,lng,ele:null,hgt:4,rank:2});
+    }
+    arLocal=local;arRoads=[...roads.values()];arRoadPickAt=0;
+  }
 
   async function arLoad(force){
     if(!me)return;
@@ -860,6 +941,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       if(arPois.length)setTimeout(()=>arMsg(''),10);
     }catch(e){arMsg('Couldn’t load places — check your signal');setTimeout(()=>arMsg(''),3000)}
     if(arShow.tower)arLoadTowers(false);
+    try{await arLoadLocal();if(arLocal.length||arRoads.length)arMsg('')}catch(e){toast('Couldn’t load nearby places')}
   }
   async function arLoadTowers(force){
     if(!me)return;
@@ -911,16 +993,31 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       if(x<-60||x>W+60)return;
       let el=0;
       if(p.ele!=null&&myAlt!=null){const drop=d*d/(2*6371000)*0.87;el=Math.atan2(p.ele-myAlt-drop,d)/r}
+      else if(p.hgt!=null)el=Math.atan2(p.hgt,d)/r;
       items.push({p,d,x,y:yFor(el)});
     };
     if(arShow.peak||arShow.place||arShow.sight)arPois.forEach(p=>{if(arShow[p.type])add(p)});
+    if(arShow.local)arLocal.forEach(add);
+    if(arShow.road){
+      const now=performance.now();
+      if(now-arRoadPickAt>250){
+        arRoadPickAt=now;
+        arRoadPick=arRoads.map(rd=>{
+          let best=null,bs=1e9;
+          for(const q of rd.pts){const d=haversine(me,q);if(d<20||d>arRangeMi*1609.34)continue;
+            const rel=Math.abs(angDiff(bearingTo(me,q),h));const sc=rel+d/400;if(sc<bs){bs=sc;best=q}}
+          return best?{type:'road',name:rd.name,sub:rd.sub,icon:'🛣',lat:best.lat,lng:best.lng,ele:null,hgt:-1.5,rank:2}:null;
+        }).filter(Boolean);
+      }
+      arRoadPick.forEach(add);
+    }
     if(arShow.pin)pins.forEach(p=>add({type:'pin',name:p.title,sub:'Your pin',lat:p.lat,lng:p.lng,ele:null,rank:0,color:p.color,id:p.id}));
     if(arShow.tower)arTowers.forEach(add);
     // Most important first: your pins, big places, then nearer things
-    items.sort((a,b)=>(a.p.rank-b.p.rank)||(a.d-b.d));
+    items.sort((a,b)=>(a.p.rank+Math.log10(a.d))-(b.p.rank+Math.log10(b.d)));
     const placed=[],out=[];
     for(const it of items){
-      if(placed.length>=22)break;
+      if(placed.length>=30)break;
       const w=Math.max(70,Math.min(180,it.p.name.length*7.5+20)),hgt=40;
       let top=it.y-24-hgt,ok=false;
       for(let lvl=0;lvl<5;lvl++){
@@ -932,7 +1029,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       const stem=Math.max(8,it.y-(top+hgt));
       const col=it.p.color?`style="border-left:4px solid ${it.p.color}"`:'';
       out.push(`<div class="ar-tag" style="left:${it.x.toFixed(0)}px;top:${(top+hgt+stem+5).toFixed(0)}px" data-i="${items.indexOf(it)}">
-        <div class="pill" ${col}><b>${AR_TYPES[it.p.type].icon} ${esc(it.p.name)}</b>${fmtDist(it.d)}${it.p.ele!=null?' · '+Math.round(it.p.ele*3.28084).toLocaleString()+' ft':''}</div>
+        <div class="pill" ${col}><b>${it.p.icon||AR_TYPES[it.p.type].icon} ${esc(it.p.name)}</b>${it.p.type==='local'||it.p.type==='road'?esc(it.p.sub)+' · ':''}${fmtDist(it.d)}${it.p.ele!=null?' · '+Math.round(it.p.ele*3.28084).toLocaleString()+' ft':''}</div>
         <div class="stem" style="height:${stem.toFixed(0)}px"></div><div class="dotp"></div></div>`);
     }
     arItems=items;
@@ -944,7 +1041,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     const p=it.p,b=bearingTo(me,p);
     closeAR();
     if(p.type==='pin'){showPin(p.id);return}
-    openSheet(`<h2 id="sheetTitle">${AR_TYPES[p.type].icon} ${esc(p.name)}</h2>
+    openSheet(`<h2 id="sheetTitle">${p.icon||AR_TYPES[p.type].icon} ${esc(p.name)}</h2>
       <div class="coords">${esc(p.sub)} · ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</div>
       <span class="dist">${fmtDist(it.d)} ${CARD[Math.round(b/22.5)%16]}</span>${p.ele!=null?`<span class="dist">${Math.round(p.ele*3.28084).toLocaleString()} ft high</span>`:''}
       <div class="row"><button class="b-primary" id="aMap">Show on map</button><button class="b-flag" id="aPin">Pin it</button></div>
