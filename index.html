@@ -128,7 +128,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .ar-tag .stem{width:2px;background:rgba(255,255,255,.85);box-shadow:0 0 2px rgba(0,0,0,.6)}
 .ar-tag .dotp{width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid var(--ink)}
 .ar-edge{position:absolute;top:50%;z-index:2;background:rgba(0,0,0,.5);color:#fff;border-radius:8px;padding:5px 8px;font-size:12px;pointer-events:none}
-.ar-msg{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);background:rgba(0,0,0,.6);color:#fff;padding:12px 16px;border-radius:12px;font-size:15px;text-align:center;max-width:80vw;z-index:2;display:none}
+.ar-msg{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);background:rgba(0,0,0,.6);color:#fff;padding:12px 16px;border-radius:12px;font-size:15px;text-align:center;max-width:80vw;z-index:4;display:none;cursor:pointer}
 /* Toast */
 .toast{position:absolute;left:50%;bottom:calc(var(--safe-b) + 84px);transform:translate(-50%,20px);z-index:1200;background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:15px;opacity:0;pointer-events:none;transition:all .25s;max-width:88vw;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -242,7 +242,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <div class="ar-horizon" id="arHorizon"></div>
   <div class="ar-labels" id="arLabels"></div>
   <div class="ar-msg" id="arMsg"></div>
-  <div class="ar-top"><div><div class="hd" id="arHead">—</div><div class="sub" id="arSub">Point your phone at what you want to know</div></div><button id="arClose" aria-label="Close camera view">✕</button></div>
+  <div class="ar-top"><div><div class="hd" id="arHead">—</div><div class="sub" id="arSub">Point your phone at what you want to know</div></div><button id="arReload" aria-label="Reload labels" style="margin-left:auto">↻</button><button id="arClose" aria-label="Close camera view" style="margin-left:0">✕</button></div>
   <div class="ar-bot">
     <div class="ar-chips" id="arChips"></div>
     <div class="ar-range"><span>Range</span><input type="range" id="arRange" min="1" max="60" step="1" value="25" aria-label="How far to show"><span id="arRangeV">25 mi</span></div>
@@ -419,7 +419,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 24 (camera fix)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 26 (road labels fix)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -917,7 +917,8 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     $('arChips').innerHTML=Object.entries(AR_TYPES).map(([k,t])=>`<button data-k="${k}" aria-pressed="${!!arShow[k]}">${t.label}</button>`).join('');
   }
   $('arChips').onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;const k=b.dataset.k;arShow[k]=!arShow[k];
-    b.setAttribute('aria-pressed',arShow[k]);arSave();if(k==='tower'&&arShow.tower)arLoadTowers(true)};
+    b.setAttribute('aria-pressed',arShow[k]);arSave();if(k==='tower'&&arShow.tower)arLoadTowers(true);
+    if(arShow[k]&&((k==='road'&&!arRoads.length)||(k==='local'&&!arLocal.length)))arLoad(true)};
   $('arRange').oninput=e=>{arRangeMi=+e.target.value;$('arRangeV').textContent=arRangeMi+' mi';arSave()};
   $('arRange').onchange=()=>arLoad(true);
 
@@ -960,10 +961,10 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   }
   // ---- OpenStreetMap place data: several servers to try, plus saved copies for offline ----
   const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
-  async function overpass(q){
+  async function overpass(q,waitMs){
     let last;
     for(const url of OVERPASS){
-      const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),45000);
+      const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),waitMs||45000);
       try{
         const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:ctl.signal});
         clearTimeout(tm);
@@ -997,9 +998,10 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     for(const n of d.elements||[]){
       const t=n.tags||{};
       if(t.highway&&n.geometry){
-        if(!t.name)continue;
-        let rd=roads.get(t.name);
-        if(!rd){rd={type:'road',name:t.name,sub:arRoadType(t.highway),pts:[]};roads.set(t.name,rd)}
+        const rn=t.name||(t.ref?String(t.ref).split(';')[0].replace(/^(SR|GA)\s*/,'GA ').replace(/^US\s*/,'US '):null);
+        if(!rn)continue;
+        let rd=roads.get(rn);
+        if(!rd){rd={type:'road',name:rn,sub:arRoadType(t.highway)+(t.name&&t.ref?` · ${t.ref}`:''),pts:[]};roads.set(rn,rd)}
         const g=n.geometry;
         for(let i=0;i<g.length;i++){
           if(!g[i])continue;rd.pts.push([+g[i].lat.toFixed(6),+g[i].lon.toFixed(6)]);
@@ -1034,7 +1036,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       nwr["power"="substation"](around:${N},${c});
       nwr["amenity"="place_of_worship"](around:${N},${c});
     );out center 1500;
-    way["highway"]["name"](around:${N},${c});out geom 800;`);
+    (way["highway"]["name"](around:${N},${c});way["highway"]["ref"](around:${N},${c}););out geom 900;`);
     const {local,roads}=parseLocal(near);
     return {lat,lng,farMi,nearMi,time:Date.now(),pois:parsePois(far),local,roads};
   }
@@ -1062,29 +1064,70 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     arFetchedAt={at:{lat:area.lat,lng:area.lng},range:area.farMi,near:area.nearMi};
     arRoadPickAt=0;arDataVer++;
   }
-  let arLoading=false;
+  // Camera labels load in small, quick steps so something shows within seconds:
+  //   1) what's right around you (1 mi)  2) towns & peaks  3) the rest out to 3 mi
+  // Each step shows its labels as soon as it arrives; a slow or busy server can't stall the rest.
+  let arLoading=false,arLoadStart=0;
+  const nearQ=(c,N)=>`[out:json][timeout:20];(
+      node["name"][!"highway"][!"place"][!"natural"](around:${N},${c});
+      way["name"][!"highway"][!"place"][!"boundary"](around:${N},${c});
+      nwr["power"="substation"](around:${N},${c});
+      nwr["amenity"="place_of_worship"](around:${N},${c});
+    );out center 800;
+    (way["highway"]["name"](around:${N},${c});way["highway"]["ref"](around:${N},${c}););out geom 500;`;
+  const farQ=(c,R,R2)=>`[out:json][timeout:20];(
+      node["natural"~"^(peak|volcano|hill)$"]["name"](around:${R},${c});
+      node["place"~"^(city|town)$"]["name"](around:${R},${c});
+      node["place"~"^(village|hamlet)$"]["name"](around:${R2},${c});
+      node["tourism"="viewpoint"]["name"](around:${R2},${c});
+      node["waterway"="waterfall"]["name"](around:${R2},${c});
+    );out body 800;`;
+  function mergeLocal(res){
+    const seen=new Set(arLocal.map(x=>x.name+'|'+x.lat.toFixed(4)+'|'+x.lng.toFixed(4)));
+    res.local.forEach(x=>{const k=x.name+'|'+x.lat.toFixed(4)+'|'+x.lng.toFixed(4);if(!seen.has(k)){seen.add(k);arLocal.push(x)}});
+    const byName=new Map(arRoads.map(r=>[r.name,r]));
+    res.roads.forEach(r=>{const pts=r.pts.map(q=>Array.isArray(q)?{lat:q[0],lng:q[1]}:q);
+      const ex=byName.get(r.name);if(ex)ex.pts=pts.length>ex.pts.length?pts:ex.pts;else{const n={...r,pts};arRoads.push(n);byName.set(r.name,n)}});
+    arRoadPickAt=0;arDataVer++;
+  }
   async function arLoad(force){
-    if(!me||arLoading)return;
+    if(!me)return;
+    if(arLoading&&Date.now()-arLoadStart<120000)return;      // never stay stuck on an old attempt
     const covered=arFetchedAt&&haversine(me,arFetchedAt.at)<(arFetchedAt.near||2)*1609.34*0.6&&arFetchedAt.range>=arRangeMi;
     if(!force&&covered)return;
-    arLoading=true;
+    arLoading=true;arLoadStart=Date.now();
+    const c=`${me.lat},${me.lng}`,at={lat:me.lat,lng:me.lng},far=Math.max(arRangeMi,25);
+    let saved=null;
     try{
-      // 1) Saved copy first: instant, and works with no signal
-      const saved=await savedAreaFor(me);
-      if(saved&&(!arFetchedAt||force||!covered)){useArea(saved);arMsg('')}
-      const fresh=saved&&Date.now()-saved.time<3*86400000&&saved.farMi>=arRangeMi;
+      saved=await savedAreaFor(me);
+      if(saved){useArea(saved);arMsg('')}
       if(!navigator.onLine){if(!saved)arMsg('No signal and this area isn’t downloaded — use Layers → ⬇ Download an area next time you have service');return}
-      if(fresh&&!force)return;
-      // 2) Online: download, show, and save for next time
-      // Look up labels quietly in the background (small note at the top), camera stays usable
-      arBusy=saved?'Updating labels…':'Finding places around you…';
-      const area=await fetchArea(me.lat,me.lng,Math.max(arRangeMi,25),3,null);
-      useArea(area);arMsg('');saveArea(area);
-    }catch(e){
-      if(!arPois.length&&!arLocal.length){arMsg('Couldn’t load places ('+(e&&e.message||'error')+'). Try again in a minute.');setTimeout(()=>arMsg(''),5000)}
+      const complete=saved&&(saved.roads||[]).length&&(saved.local||[]).length;
+      if(complete&&Date.now()-saved.time<3*86400000&&saved.farMi>=arRangeMi&&!force)return;
+      if(!saved){arPois=[];arLocal=[];arRoads=[];arDataVer++}
+      let okSteps=0,lastErr=null;
+      // Step 1: right around you
+      arBusy='Finding what’s right around you…';
+      try{mergeLocal(parseLocal(await overpass(nearQ(c,1609),25000)));okSteps++}catch(e){lastErr=e}
+      // Step 2: towns & peaks
+      arBusy='Finding towns & peaks…';
+      try{const d=await overpass(farQ(c,Math.round(far*1609.34),Math.min(Math.round(far*1609.34),20000)),25000);
+        arPois=parsePois(d);arDataVer++;okSteps++}catch(e){lastErr=e}
+      arFetchedAt={at,range:far,near:1};
+      // Step 3: the rest out to 3 miles
+      arBusy='Finding more nearby…';
+      try{mergeLocal(parseLocal(await overpass(nearQ(c,4828).replace('[timeout:20]','[timeout:40]'),45000)));arFetchedAt.near=3;okSteps++}catch(e){lastErr=e}
+      if(okSteps){
+        arMsg('');
+        saveArea({lat:at.lat,lng:at.lng,farMi:far,nearMi:arFetchedAt.near,time:Date.now(),pois:arPois,local:arLocal,
+          roads:arRoads.map(r=>({...r,pts:r.pts.map(q=>[+q.lat.toFixed(6),+q.lng.toFixed(6)])}))});
+      }else if(!saved){
+        arMsg('Couldn’t reach the map-data servers ('+(lastErr&&lastErr.message||'no answer')+'). Tap here to try again.');
+      }
     }finally{arLoading=false;arBusy=''}
     if(arShow.tower)arLoadTowers(false);
   }
+  $('arMsg').onclick=()=>{if($('arMsg').textContent.includes('try again')){arMsg('');arLoad(true)}};
   async function arLoadTowers(force){
     if(!me)return;
     if(!force&&arTowersAt&&haversine(me,arTowersAt)<2000)return;
@@ -1211,9 +1254,10 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   }
   let arBusy='';
   function arStatus(){
-    if(arBusy&&!arPois.length&&!arLocal.length)return arBusy;
+    const secs=arLoading?` (${Math.round((Date.now()-arLoadStart)/1000)}s)`:'';
+    if(arBusy&&!arPois.length&&!arLocal.length)return arBusy+secs;
     const c=[];if(arPois.length)c.push(arPois.length+' places');if(arLocal.length)c.push(arLocal.length+' nearby');if(arRoads.length)c.push(arRoads.length+' roads');
-    return (c.length?c.join(' · '):'Finding places around you…')+(arBusy&&c.length?' · updating…':'');
+    return (c.length?c.join(' · '):(arLoading?'Finding places around you…'+secs:'No places loaded — tap ↻'))+(arBusy&&c.length?' · loading more…':'');
   }
   let arItems=[];
   $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t||!t._item)return;arDetails(t._item)};
@@ -1248,6 +1292,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   }
   $('arBtn').onclick=openAR;
   $('arClose').onclick=closeAR;
+  $('arReload').onclick=()=>{arMsg('');arLoad(true);toast('Reloading labels…')};
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&arOn)closeAR()});
 
   // ---------- Download an area for offline ----------
