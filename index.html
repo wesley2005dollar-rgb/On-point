@@ -419,7 +419,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 23 (draw your download)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 24 (camera fix)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -1073,15 +1073,16 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       const saved=await savedAreaFor(me);
       if(saved&&(!arFetchedAt||force||!covered)){useArea(saved);arMsg('')}
       const fresh=saved&&Date.now()-saved.time<3*86400000&&saved.farMi>=arRangeMi;
-      if(!navigator.onLine){if(!saved)arMsg('No signal and this area isn’t saved yet — use “Save this area for offline” next time you have service');return}
+      if(!navigator.onLine){if(!saved)arMsg('No signal and this area isn’t downloaded — use Layers → ⬇ Download an area next time you have service');return}
       if(fresh&&!force)return;
       // 2) Online: download, show, and save for next time
-      if(!saved)arMsg('Finding what’s around you…');
-      const area=await fetchArea(me.lat,me.lng,Math.max(arRangeMi,25),3,t=>{if(!saved)arMsg(t)});
+      // Look up labels quietly in the background (small note at the top), camera stays usable
+      arBusy=saved?'Updating labels…':'Finding places around you…';
+      const area=await fetchArea(me.lat,me.lng,Math.max(arRangeMi,25),3,null);
       useArea(area);arMsg('');saveArea(area);
     }catch(e){
       if(!arPois.length&&!arLocal.length){arMsg('Couldn’t load places ('+(e&&e.message||'error')+'). Try again in a minute.');setTimeout(()=>arMsg(''),5000)}
-    }finally{arLoading=false}
+    }finally{arLoading=false;arBusy=''}
     if(arShow.tower)arLoadTowers(false);
   }
   async function arLoadTowers(force){
@@ -1208,9 +1209,11 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     }
     for(let i=n;i<arPool.length;i++)arPool[i].style.display='none';
   }
+  let arBusy='';
   function arStatus(){
+    if(arBusy&&!arPois.length&&!arLocal.length)return arBusy;
     const c=[];if(arPois.length)c.push(arPois.length+' places');if(arLocal.length)c.push(arLocal.length+' nearby');if(arRoads.length)c.push(arRoads.length+' roads');
-    return c.length?c.join(' · '):'Loading…';
+    return (c.length?c.join(' · '):'Finding places around you…')+(arBusy&&c.length?' · updating…':'');
   }
   let arItems=[];
   $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t||!t._item)return;arDetails(t._item)};
