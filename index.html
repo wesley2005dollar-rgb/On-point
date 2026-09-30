@@ -106,11 +106,11 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 
 /* Markers */
 .you-dot{width:18px;height:18px;border-radius:50%;background:var(--you);border:3px solid #fff;box-shadow:0 0 0 2px rgba(30,127,216,.35),0 1px 4px rgba(0,0,0,.4)}
-.you{position:relative;width:60px;height:60px}
-.you .you-dot{position:absolute;left:21px;top:21px}
-.you .arrow{position:absolute;left:14px;top:14px;width:32px;height:32px;display:none;transition:transform .2s linear;filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
+.you{position:relative;width:110px;height:110px;pointer-events:none}
+.you .you-dot{position:absolute;left:46px;top:46px}
+.you .arrow{position:absolute;left:39px;top:39px;width:32px;height:32px;display:none;transition:transform .2s linear;filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
 .you.moving .arrow{display:block}.you.moving .you-dot{display:none}
-.you .cone{position:absolute;left:0;top:0;width:60px;height:60px;display:none;transition:transform .12s linear}
+.you .cone{position:absolute;left:0;top:0;width:110px;height:110px;display:none;transition:transform .12s linear}
 .you .cone.on{display:block}
 .tower-ic svg{display:block;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.45))}
 .flag-pin svg{display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}
@@ -322,8 +322,9 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 
   // ---------- you ----------
   let me=null, meMarker=null, meCircle=null, follow=true;
-  const youIcon=L.divIcon({className:'',iconSize:[60,60],iconAnchor:[30,30],
-    html:'<div class="you"><svg class="cone" viewBox="0 0 60 60"><defs><radialGradient id="cg" cx="30" cy="30" r="30" gradientUnits="userSpaceOnUse"><stop offset=".25" stop-color="#1E7FD8" stop-opacity=".55"/><stop offset="1" stop-color="#1E7FD8" stop-opacity="0"/></radialGradient></defs><path d="M30 30 L14 1 A30 30 0 0 1 46 1 Z" fill="url(#cg)"/></svg><div class="you-dot"></div><svg class="arrow" viewBox="0 0 32 32"><path d="M16 2 28 28 16 22 4 28Z" fill="#1E7FD8" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg></div>'});
+  // Looking cone is amber and longer so it reads clearly apart from the blue travel arrow
+  const youIcon=L.divIcon({className:'',iconSize:[110,110],iconAnchor:[55,55],
+    html:'<div class="you"><svg class="cone" viewBox="0 0 110 110"><defs><radialGradient id="cg" cx="55" cy="55" r="55" gradientUnits="userSpaceOnUse"><stop offset=".15" stop-color="#F28C28" stop-opacity=".75"/><stop offset="1" stop-color="#F28C28" stop-opacity="0"/></radialGradient></defs><path d="M55 55 L36 2 A56 56 0 0 1 74 2 Z" fill="url(#cg)"/><path d="M55 55 L55 6" stroke="#F28C28" stroke-width="2" stroke-dasharray="3 4" stroke-linecap="round"/></svg><div class="you-dot"></div><svg class="arrow" viewBox="0 0 32 32"><path d="M16 2 28 28 16 22 4 28Z" fill="#1E7FD8" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg></div>'});
   let gpsHeading=null,gpsSpeed=0;
   function onPos(pos){
     const {latitude:lat,longitude:lng,accuracy:acc}=pos.coords;
@@ -366,7 +367,16 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     if(age>12000){startGeo();poke()}
     updateReadout();
   },5000);
-  map.on('dragstart',()=>{follow=false;$('locBtn').classList.remove('on')});
+  function stopFollow(){if(follow){follow=false;$('locBtn').classList.remove('on')}}
+  map.on('dragstart',stopFollow);
+  (function(){
+    const el=map.getContainer();let sx=0,sy=0,down=false;
+    el.addEventListener('touchstart',e=>{if(e.touches.length>1)stopFollow();else{down=true;sx=e.touches[0].clientX;sy=e.touches[0].clientY}},{passive:true});
+    el.addEventListener('touchmove',e=>{if(e.touches.length>1)stopFollow();else if(down&&Math.hypot(e.touches[0].clientX-sx,e.touches[0].clientY-sy)>8)stopFollow()},{passive:true});
+    el.addEventListener('touchend',()=>{down=false},{passive:true});
+    el.addEventListener('wheel',stopFollow,{passive:true});
+    el.addEventListener('dblclick',stopFollow);
+  })();
   $('locBtn').onclick=()=>{
     enableCompass(false);
     if(!me){toast('Waiting for your location…');return}
@@ -446,7 +456,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     if(!(await enableCompass(true)))return;
     headingOn=true;lastSet=null;
     $('compassBtn').classList.add('head');
-    if(me){follow=true;map.setView([me.lat,me.lng],Math.max(map.getZoom(),16))}
+    if(me&&follow)map.setView([me.lat,me.lng],Math.max(map.getZoom(),16));
     toast('Map turns with you — tap again for north up');
     setTimeout(()=>{if(headingOn&&currentHeading()==null)toast('No compass reading from this phone')},2500);
   }
