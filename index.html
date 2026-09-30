@@ -141,6 +141,19 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .you.moving .arrow{display:block}.you.moving .you-dot{display:none}
 .you .cone{position:absolute;left:0;top:0;width:110px;height:110px;display:none;transition:transform .2s ease-out}
 .you .cone.on{display:block}
+.dlpanel{position:absolute;left:0;right:0;bottom:0;z-index:950;background:var(--paper);border-radius:18px 18px 0 0;padding:12px 14px calc(var(--safe-b) + 14px);box-shadow:0 -4px 20px rgba(0,0,0,.25);display:none}
+.dlpanel.show{display:block}
+.dlpanel h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:22px;margin:0 0 4px}
+.seg{display:flex;gap:8px;margin:6px 0}
+.seg button{flex:1;height:40px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-weight:600;font-size:15px}
+.seg button[aria-pressed=true]{background:var(--slate);color:#fff;border-color:var(--slate)}
+.dlp-hint{font-size:14px;color:var(--muted);line-height:1.4;margin:4px 0}
+.dlp-est{font-size:15px;font-weight:600;margin:6px 0 0}
+.dl-h{width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid #E0287D;box-shadow:0 1px 5px rgba(0,0,0,.4)}
+.dl-mv{width:40px;height:40px;border-radius:50%;background:#E0287D;color:#fff;display:grid;place-items:center;font-size:20px;border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.4)}
+.dl-pt{width:14px;height:14px;border-radius:50%;background:#E0287D;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.temp-ic{display:flex;align-items:center;justify-content:center}
+.temp-ic span{font:700 15px/1 "Barlow Condensed","Arial Narrow",sans-serif;color:#fff;padding:5px 7px;border-radius:9px;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);white-space:nowrap}
 .tower-ic svg{display:block;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.45))}
 .flag-pin svg{display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}
 .leaflet-control-attribution{font-size:10px}
@@ -185,6 +198,8 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 </header>
 
 <div class="hint" id="hint">Tap the map to drop a pin</div>
+<div class="calbar" id="dlbanner" role="status" style="flex-wrap:wrap"><span style="flex:1;min-width:0"><b id="dlbT">Downloading…</b><span id="dlbS"></span>
+  <span style="display:block;height:8px;border-radius:4px;background:#F6D9BC;overflow:hidden;margin-top:6px"><span id="dlbBar" style="display:block;height:100%;width:0;background:#E0287D;transition:width .2s"></span></span></span><button id="dlbStop">Cancel</button></div>
 <div class="calbar" id="calbar" role="status"><span class="spin" aria-hidden="true"></span><span><b>Calibrating compass</b><span id="calMsg">Wave the phone in a figure‑8, then move in a straight line with it pointed ahead</span></span><button id="calSkip">Skip</button></div>
 
 <div class="legend" id="legend" aria-hidden="true"><b id="legendTitle">Water temp</b><div class="bar"></div><div class="ends"><span>Colder</span><span>Warmer</span></div></div>
@@ -206,6 +221,16 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <button class="btn-flag" id="pinHereBtn">Pin where I am</button>
 </nav>
 
+<div class="dlpanel" id="dlpanel" role="dialog" aria-label="Choose area to download">
+  <h3>Choose what to download</h3>
+  <div class="seg" id="dlpMode"><button data-m="box" aria-pressed="true">▭ Box</button><button data-m="trail" aria-pressed="false">〰 Trail / route</button></div>
+  <div class="dlp-hint" id="dlpHint"></div>
+  <div class="seg" id="dlpWidth" style="display:none"><button data-w="0.1">Narrow</button><button data-w="0.25" aria-pressed="true">¼ mi</button><button data-w="0.5">½ mi</button><button data-w="1">1 mi</button></div>
+  <div class="seg" id="dlpTrailBtns" style="display:none"><button id="dlpUndo">↶ Undo point</button><button id="dlpClear">Clear</button></div>
+  <div class="seg" id="dlpMaps"><button data-l="usgs" aria-pressed="true">Topo map</button><button data-l="usgsimg" aria-pressed="false">Satellite + names</button></div>
+  <div class="dlp-est" id="dlpEst"></div>
+  <div class="row" style="margin-top:10px"><button class="b-ghost" id="dlpCancel">Cancel</button><button class="b-flag" id="dlpGo">Download</button></div>
+</div>
 <div class="scrim" id="scrim"></div>
 <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
   <div class="grab"></div>
@@ -315,6 +340,46 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     $('tPin').onclick=()=>{newPinAt(t.lat,t.lng);setTimeout(()=>{const f=$('fTitle');if(f)f.value='Cell tower'+(owner?' – '+owner:'')},30)};
   }
 
+  // Live air temperature on land (Open-Meteo, free weather service): a grid of readings across the map
+  const airLayer=L.layerGroup();
+  let airTimer=null,airSeq=0;
+  function tempColor(f){
+    const stops=[[10,'#4B2991'],[32,'#2166AC'],[50,'#4393C3'],[62,'#5AAE61'],[72,'#D9C21C'],[82,'#F28C28'],[92,'#D6301F'],[105,'#7F0000']];
+    for(let i=1;i<stops.length;i++)if(f<stops[i][0])return stops[i-1][1];return stops[stops.length-1][1];
+  }
+  async function loadAir(){
+    if(!map.hasLayer(airLayer))return;
+    const b=map.getBounds(),seq=++airSeq,z=map.getZoom();
+    const cols=z>=13?2:z>=10?3:4,rows=Math.round(cols*Math.max(1,map.getSize().y/map.getSize().x));
+    const pts=[];
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)
+      pts.push([b.getNorth()-(r+.5)*(b.getNorth()-b.getSouth())/rows, b.getWest()+(c+.5)*(b.getEast()-b.getWest())/cols]);
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${pts.map(p=>p[0].toFixed(3)).join(',')}&longitude=${pts.map(p=>p[1].toFixed(3)).join(',')}&current=temperature_2m&temperature_unit=fahrenheit`;
+    try{
+      const d=await (await fetch(url)).json();if(seq!==airSeq)return;
+      const arr=Array.isArray(d)?d:[d];
+      airLayer.clearLayers();
+      arr.forEach((r,i)=>{const t=r&&r.current&&r.current.temperature_2m;if(typeof t!=='number')return;
+        L.marker(pts[i],{interactive:false,icon:L.divIcon({className:'temp-ic',iconSize:[50,28],iconAnchor:[25,14],
+          html:`<span style="background:${tempColor(t)}">${Math.round(t)}°</span>`})}).addTo(airLayer)});
+    }catch(e){if(seq===airSeq)toast('Couldn’t load air temperatures')}
+  }
+  airLayer.on('add',loadAir);
+  map.on('moveend',()=>{clearTimeout(airTimer);airTimer=setTimeout(loadAir,600)});
+  setInterval(loadAir,15*60*1000);
+  // Temperature where you are, shown in the top corner
+  let myTemp=null,myTempAt=0;
+  try{const v=JSON.parse(localStorage.getItem('onpoint.myTemp'));if(v){myTemp=v.t;myTempAt=v.at}}catch(e){}
+  async function loadMyTemp(){
+    if(!me||!navigator.onLine||Date.now()-myTempAt<10*60*1000)return;
+    myTempAt=Date.now();
+    try{const d=await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${me.lat.toFixed(3)}&longitude=${me.lng.toFixed(3)}&current=temperature_2m&temperature_unit=fahrenheit`)).json();
+      const t=d&&d.current&&d.current.temperature_2m;
+      if(typeof t==='number'){myTemp=t;try{localStorage.setItem('onpoint.myTemp',JSON.stringify({t,at:myTempAt}))}catch(e){}updateReadout()}
+    }catch(e){myTempAt=0}
+  }
+  setInterval(()=>loadMyTemp(),60000);
+
   const OVERLAYS={
     chart:{name:'Nautical chart depths',desc:'NOAA charts with depth soundings and contours — coast, bays, big rivers and some large lakes',
       layer:new EsriExport('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/MapServer/export',{maxZoom:20,opacity:.9,zIndex:5,attribution:'Charts © NOAA'})},
@@ -323,6 +388,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     sst:{name:'Ocean water temp',desc:'NASA daily sea-surface temperature, about 1 km detail',temp:'Ocean water temp',
       layer:L.tileLayer(gibs('GHRSST_L4_MUR_Sea_Surface_Temperature'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'SST © NASA GIBS'})},
     towers:{name:'Cell towers',desc:'FCC-licensed cellular sites near you. Not every carrier site is listed. Zoom in to load',layer:towers},
+    air:{name:'Air temperature (live)',desc:'Current temperature across the map, updated every 15 min',layer:airLayer},
     lst:{name:'Land & lake surface temp',desc:'NASA daily daytime surface temp. Gaps where it was cloudy',temp:'Surface temp',
       layer:L.tileLayer(gibs('MODIS_Terra_Land_Surface_Temp_Day'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'LST © NASA GIBS'})}
   };
@@ -346,13 +412,14 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <div class="sec">Base map</div><div id="bases" role="radiogroup">${base}</div>
       <div class="sec">Overlays</div><div id="ovs">${ov}</div>
       <div class="sec">Offline</div>
-      <button class="opt" id="offSave"><span><span class="ot">⬇ Download an area</span><span class="od">Map + named places & roads for wherever the map is centered, to use with no signal</span></span></button>
+      <button class="opt" id="offSave"><span><span class="ot">⬇ Download an area</span><span class="od">Drag a box — or trace a trail — over what you need, for use with no signal</span></span></button>
+      <button class="opt" id="offManage"><span><span class="ot">Manage downloads</span><span class="od">See and delete saved areas</span></span></button>
       <p class="fine" id="offInfo" style="margin-top:2px"></p>
       <div class="sec">Compass</div>
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 21 (download areas)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 23 (draw your download)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -361,7 +428,8 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       if(layerState.on.includes(k)&&(OVERLAYS[k].layer.options||{}).maxNativeZoom===7&&map.getZoom()>11)toast('Zoom out to see the temperature pattern');};
     $('doneB').onclick=closeSheet;
     $('calOpen').onclick=showCalibrate;
-    $('offSave').onclick=showDownload;
+    $('offSave').onclick=()=>{closeSheet();startSelect()};
+    $('offManage').onclick=showDownloads;
     idb.get('areas').then(a=>{const el=$('offInfo');if(!el)return;a=a||[];
       el.textContent=(a.length?`${a.length} area${a.length>1?'s':''} saved. `:'No areas saved yet. ')+
         'Map tiles you look at while online are kept automatically — pan and zoom around an area before you lose signal.'+
@@ -482,7 +550,9 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     if(!me) return;
     const age=Math.round((Date.now()-lastFix)/1000);
     const fresh=age<8?'live':age<60?age+'s ago':Math.round(age/60)+' min ago';
-    $('readout').innerHTML=`<b>${me.lat.toFixed(5)}, ${me.lng.toFixed(5)}</b><br>±${fmtDist(me.acc)} · ${fresh}`;
+    const tmp=myTemp!=null?` · ${Math.round(myTemp)}°F`:'';
+    $('readout').innerHTML=`<b>${me.lat.toFixed(5)}, ${me.lng.toFixed(5)}</b><br>±${fmtDist(me.acc)} · ${fresh}${tmp}`;
+    if(Date.now()-myTempAt>10*60*1000)loadMyTemp();
   }
 
   // ---------- compass & rotation ----------
@@ -711,8 +781,10 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   // ---------- sheet ----------
   let draft=null, draftMarker=null;
   function openSheet(html){$('sheetBody').innerHTML=html;$('sheet').classList.add('show');$('scrim').classList.add('show');}
+  let onSheetClose=null;
   function closeSheet(){
     $('sheet').classList.remove('show');$('scrim').classList.remove('show');
+    if(onSheetClose){const f=onSheetClose;onSheetClose=null;f()}
     if(draftMarker){map.removeLayer(draftMarker);draftMarker=null}
     draft=null;
     if(document.activeElement) document.activeElement.blur();
@@ -1178,93 +1250,236 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   // ---------- Download an area for offline ----------
   const OFF_CACHE='onpoint-offline-v1';
   const DL_LAYERS={usgs:{name:'Topo map',path:'USGSTopo',kb:22},usgsimg:{name:'Satellite + names',path:'USGSImageryTopo',kb:48}};
-  function tileList(lat,lng,rMi,zmin,zmax,path){
-    const r=rMi*1609.34,dLat=r/111320,dLng=r/(111320*Math.cos(lat*Math.PI/180)),out=[];
-    const X=(x,z)=>Math.floor((x+180)/360*2**z),
-      Y=(y,z)=>{const t=y*Math.PI/180;return Math.floor((1-Math.log(Math.tan(t)+1/Math.cos(t))/Math.PI)/2*2**z)};
-    for(let z=zmin;z<=zmax;z++){
-      const x0=X(lng-dLng,z),x1=X(lng+dLng,z),y0=Y(lat+dLat,z),y1=Y(lat-dLat,z);
-      for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)
-        out.push(`https://basemap.nationalmap.gov/arcgis/rest/services/${path}/MapServer/tile/${z}/${y}/${x}`);
-    }
+  // ---- tile math ----
+  const TX=(x,z)=>Math.floor((x+180)/360*2**z);
+  const TY=(y,z)=>{const t=Math.max(-85,Math.min(85,y))*Math.PI/180;return Math.floor((1-Math.log(Math.tan(t)+1/Math.cos(t))/Math.PI)/2*2**z)};
+  const tileUrl=(path,z,x,y)=>`https://basemap.nationalmap.gov/arcgis/rest/services/${path}/MapServer/tile/${z}/${y}/${x}`;
+  function tileBounds(z,x,y){const n=2**z,lng=v=>v/n*360-180,lat=v=>Math.atan(Math.sinh(Math.PI*(1-2*v/n)))*180/Math.PI;
+    return L.latLngBounds([lat(y+1),lng(x)],[lat(y),lng(x+1)])}
+  // Which tiles cover a shape, as "z/x/y" keys
+  function tilesForShape(shape,z){
+    const set=new Set();
+    const addBox=(s,w,n,e)=>{const x0=TX(w,z),x1=TX(e,z),y0=TY(n,z),y1=TY(s,z);
+      for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)set.add(z+'/'+x+'/'+y)};
+    if(shape.kind==='box'){const[s,w,n,e]=shape.b;addBox(s,w,n,e)}
+    else if(shape.kind==='trail'){
+      const wm=shape.w*1609.34,step=Math.max(30,Math.min(wm,40075016*Math.cos(shape.pts[0][0]*Math.PI/180)/2**z/2));
+      for(let i=0;i<shape.pts.length;i++){
+        const A=shape.pts[i],B=shape.pts[i+1]||A,Lm=haversine({lat:A[0],lng:A[1]},{lat:B[0],lng:B[1]}),k=Math.max(1,Math.ceil(Lm/step));
+        for(let j=0;j<=k;j++){const la=A[0]+(B[0]-A[0])*j/k,lo=A[1]+(B[1]-A[1])*j/k,dLat=wm/111320,dLng=wm/(111320*Math.cos(la*Math.PI/180));
+          addBox(la-dLat,lo-dLng,la+dLat,lo+dLng)}
+      }
+    }else if(shape.kind==='circle'){const r=shape.r*1609.34,dLat=r/111320,dLng=r/(111320*Math.cos(shape.lat*Math.PI/180));addBox(shape.lat-dLat,shape.lng-dLng,shape.lat+dLat,shape.lng+dLng)}
+    return set;
+  }
+  function planShape(shape,layers){
+    // Pick the most detail that keeps the download a reasonable size
+    // count quickly (boxes by arithmetic, so huge boxes don't freeze the phone)
+    const countAt=z=>{
+      if(shape.kind==='trail')return tilesForShape(shape,z).size;
+      let S,W,N,E;if(shape.kind==='box')[S,W,N,E]=shape.b;
+      else{const r=shape.r*1609.34,dLat=r/111320,dLng=r/(111320*Math.cos(shape.lat*Math.PI/180));S=shape.lat-dLat;N=shape.lat+dLat;W=shape.lng-dLng;E=shape.lng+dLng}
+      return (TX(E,z)-TX(W,z)+1)*(TY(S,z)-TY(N,z)+1);
+    };
+    let zmax=16,count=0;
+    for(;zmax>=10;zmax--){count=0;for(let z=8;z<=zmax;z++){count+=countAt(z);if(count>9000)break}if(count<=9000)break}
+    const kb=layers.reduce((a,k)=>a+DL_LAYERS[k].kb,0);
+    return {zmax,count:count*layers.length,mb:Math.max(1,Math.round(count*kb/1024))};
+  }
+  function shapeUrls(shape,layers,zmax){
+    const out=[];
+    for(const k of layers)for(let z=8;z<=zmax;z++)for(const key of tilesForShape(shape,z)){const[zz,x,y]=key.split('/');out.push({u:tileUrl(DL_LAYERS[k].path,+zz,+x,+y),k})}
     return out;
   }
-  const maxZFor=r=>r<=5?16:r<=10?15:14;
-  let dlSel={r:5,layers:{usgs:true,usgsimg:false}},dlCancel=false;
-  function dlPlan(){
-    const c=map.getCenter(),zmax=maxZFor(dlSel.r);let n=0,kb=0;
-    for(const [k,L] of Object.entries(DL_LAYERS))if(dlSel.layers[k]){const t=tileList(c.lat,c.lng,dlSel.r,8,zmax,L.path).length;n+=t;kb+=t*L.kb}
-    return {c,zmax,n,mb:Math.max(1,Math.round(kb/1024))};
+  function shapeOf(d){
+    if(d.kind)return d;
+    return {kind:'circle',lat:d.lat,lng:d.lng,r:d.r};    // downloads from the older version
   }
-  async function showDownload(){
-    const list=(await idb.get('downloads').catch(()=>null))||[];
-    const plan=dlPlan();
-    const rOpts=[2,5,10,20].map(r=>`<button class="opt" role="radio" aria-checked="${r===dlSel.r}" data-r="${r}" style="flex:1;justify-content:center"><span class="ot">${r} mi</span></button>`).join('');
-    const lOpts=Object.entries(DL_LAYERS).map(([k,L])=>`<button class="opt sw-t" aria-pressed="${!!dlSel.layers[k]}" data-l="${k}"><span><span class="ot">${L.name}</span></span><span class="mk"></span></button>`).join('');
-    const saved=list.map((d,i)=>`<div class="opt" style="cursor:default"><span><span class="ot">${esc(d.name)}</span><span class="od">${d.r} mi · ${d.layers.map(k=>DL_LAYERS[k].name).join(' + ')} · ${new Date(d.time).toLocaleDateString()}</span></span>
-      <button class="b-danger" data-del="${i}" style="margin-left:auto;border-radius:10px;padding:8px 12px;font-weight:600">Delete</button></div>`).join('');
-    openSheet(`<h2 id="sheetTitle">Download an area</h2>
-      <p class="fine" style="margin-top:4px">Downloads around the <b>center of the map</b> — move the map first to grab somewhere you're going. Includes named places & roads for the camera view.</p>
-      <div class="sec">How far around</div><div id="dlR" style="display:flex;gap:8px">${rOpts}</div>
-      <div class="sec">Maps</div><div id="dlL">${lOpts}</div>
-      <p class="fine" id="dlEst" style="font-size:15px">About ${plan.n.toLocaleString()} map pieces · ~${plan.mb} MB · detail to street level${plan.zmax<16?' (a little less for big areas)':''}</p>
-      <div class="row"><button class="b-ghost" id="dlClose">Close</button><button class="b-flag" id="dlGo">Download</button></div>
-      ${list.length?`<div class="sec">Downloaded</div>${saved}`:''}
-      <p class="fine">Downloaded areas use the <b>USGS Topo</b> or <b>USGS Satellite + names</b> maps (Layers). The app switches to them automatically when you lose signal.</p>`);
-    $('dlR').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;dlSel.r=+b.dataset.r;showDownload()};
-    $('dlL').onclick=e=>{const b=e.target.closest('[data-l]');if(!b)return;dlSel.layers[b.dataset.l]=!dlSel.layers[b.dataset.l];showDownload()};
-    $('dlClose').onclick=closeSheet;
-    $('dlGo').onclick=runDownload;
-    $('sheetBody').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteDownload(+b.dataset.del));
+
+  // ---- showing downloads on the map ----
+  const dlLayer=L.layerGroup().addTo(map),dlTiles=L.layerGroup().addTo(map),dlEdit=L.layerGroup().addTo(map),dlCanvas=L.canvas({padding:.3});
+  let dlRunning=false;
+  const mPerPx=()=>40075016*Math.cos(map.getCenter().lat*Math.PI/180)/2**(map.getZoom()+8);
+  function drawShape(shape,style,layer){
+    if(shape.kind==='box'){const[s,w,n,e]=shape.b;return L.rectangle([[s,w],[n,e]],style).addTo(layer)}
+    if(shape.kind==='circle'){const r=shape.r*1609.34,dLat=r/111320,dLng=r/(111320*Math.cos(shape.lat*Math.PI/180));
+      return L.rectangle([[shape.lat-dLat,shape.lng-dLng],[shape.lat+dLat,shape.lng+dLng]],style).addTo(layer)}
+    if(shape.kind==='trail'&&shape.pts.length){
+      const band=L.polyline(shape.pts,{...style,weight:Math.max(6,2*shape.w*1609.34/mPerPx()),opacity:.25,lineCap:'round',lineJoin:'round'}).addTo(layer);
+      band._band=shape.w;
+      L.polyline(shape.pts,{...style,fill:false,weight:3,opacity:.9}).addTo(layer);
+      return band;
+    }
   }
-  async function runDownload(){
-    const plan=dlPlan(),layers=Object.keys(DL_LAYERS).filter(k=>dlSel.layers[k]);
-    if(!layers.length){toast('Pick at least one map');return}
+  map.on('zoomend',()=>{[dlLayer,dlEdit].forEach(g=>g.eachLayer(l=>{if(l._band)l.setStyle({weight:Math.max(6,2*l._band*1609.34/mPerPx())})}))});
+  function drawDownloadAreas(list){
+    dlLayer.clearLayers();
+    (list||[]).forEach(d=>drawShape(shapeOf(d),{color:'#2E9E5B',weight:2,fillOpacity:.06,interactive:false},dlLayer));
+  }
+  function clearDownloadAreas(){if(!dlRunning){dlLayer.clearLayers();dlTiles.clearLayers()}}
+
+  // ---- choosing the area by hand ----
+  let dlSelecting=false,dlMode='box',dlBox=null,dlTrail=[],dlW=0.25,dlMaps={usgs:true,usgsimg:false},dlEstT=null;
+  const handleIcon=L.divIcon({className:'',html:'<div class="dl-h"></div>',iconSize:[26,26],iconAnchor:[13,13]});
+  const moveIcon=L.divIcon({className:'',html:'<div class="dl-mv">✥</div>',iconSize:[40,40],iconAnchor:[20,20]});
+  const ptIcon=L.divIcon({className:'',html:'<div class="dl-pt"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+  function curShape(){return dlMode==='box'?{kind:'box',b:dlBox}:{kind:'trail',pts:dlTrail,w:dlW}}
+  function curLayers(){return Object.keys(DL_LAYERS).filter(k=>dlMaps[k])}
+  async function startSelect(){
+    dlSelecting=true;follow=false;$('locBtn').classList.remove('on');
+    if(headingOn){stopHeading();map.setBearing(0)}else if(canRotate&&Math.abs(map.getBearing())>1)map.setBearing(0);
+    const b=map.getBounds(),dy=(b.getNorth()-b.getSouth()),dx=(b.getEast()-b.getWest());
+    // start with a box in the upper-middle of the screen (the panel covers the bottom)
+    dlBox=[b.getSouth()+dy*.45,b.getWest()+dx*.15,b.getNorth()-dy*.2,b.getEast()-dx*.15];
+    $('dlpanel').classList.add('show');document.querySelector('.dock').style.display='none';document.querySelector('.fab-col').style.display='none';
+    drawDownloadAreas((await idb.get('downloads').catch(()=>null))||[]);
+    setMode(dlMode);
+  }
+  function endSelect(){
+    dlSelecting=false;dlEdit.clearLayers();
+    $('dlpanel').classList.remove('show');document.querySelector('.dock').style.display='';document.querySelector('.fab-col').style.display='';
+    clearDownloadAreas();
+  }
+  function setMode(m){
+    dlMode=m;
+    $('dlpMode').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
+    $('dlpWidth').style.display=$('dlpTrailBtns').style.display=m==='trail'?'flex':'none';
+    $('dlpHint').innerHTML=m==='box'
+      ?'Drag the <b>white corners</b> to size the box, and the <b>pink ✥</b> to move it. Stretch it long and thin for a trail, or zoom out for a big area.'
+      :'Tap along the trail or road, point by point. The band shows what gets saved on each side.';
+    redrawEdit();
+  }
+  function redrawEdit(){
+    dlEdit.clearLayers();
+    const style={color:'#E0287D',weight:3,dashArray:'8 6',fillColor:'#E0287D',fillOpacity:.1,interactive:false};
+    if(dlMode==='box'){
+      let[s,w,n,e]=dlBox;
+      const rect=L.rectangle([[s,w],[n,e]],style).addTo(dlEdit);
+      const corners={sw:[s,w],nw:[n,w],ne:[n,e],se:[s,e]},hs={};
+      const refresh=()=>{[s,w,n,e]=dlBox;rect.setBounds([[s,w],[n,e]]);
+        const c={sw:[s,w],nw:[n,w],ne:[n,e],se:[s,e]};for(const k in hs)if(!hs[k]._drag)hs[k].setLatLng(c[k]);
+        if(!mv._drag)mv.setLatLng([(s+n)/2,(w+e)/2]);estimate()};
+      for(const k in corners){
+        const h=L.marker(corners[k],{icon:handleIcon,draggable:true,zIndexOffset:2000}).addTo(dlEdit);hs[k]=h;
+        h.on('dragstart',()=>h._drag=true);
+        h.on('drag',()=>{const p=h.getLatLng();let[s2,w2,n2,e2]=dlBox;
+          if(k[0]==='s')s2=p.lat;else n2=p.lat;if(k[1]==='w')w2=p.lng;else e2=p.lng;
+          dlBox=[Math.min(s2,n2),Math.min(w2,e2),Math.max(s2,n2),Math.max(w2,e2)];refresh()});
+        h.on('dragend',()=>{h._drag=false;refresh()});
+      }
+      const mv=L.marker([(s+n)/2,(w+e)/2],{icon:moveIcon,draggable:true,zIndexOffset:2100}).addTo(dlEdit);let start=null;
+      mv.on('dragstart',()=>{mv._drag=true;start={p:mv.getLatLng(),b:dlBox.slice()}});
+      mv.on('drag',()=>{const p=mv.getLatLng(),dl=p.lat-start.p.lat,dn=p.lng-start.p.lng;
+        dlBox=[start.b[0]+dl,start.b[1]+dn,start.b[2]+dl,start.b[3]+dn];refresh()});
+      mv.on('dragend',()=>{mv._drag=false;refresh()});
+    }else{
+      if(dlTrail.length)drawShape({kind:'trail',pts:dlTrail,w:dlW},{color:'#E0287D',interactive:false},dlEdit);
+      dlTrail.forEach(p=>L.marker(p,{icon:ptIcon,interactive:false}).addTo(dlEdit));
+    }
+    estimate();
+  }
+  function estimate(){
+    clearTimeout(dlEstT);
+    dlEstT=setTimeout(()=>{
+      const layers=curLayers(),el=$('dlpEst');
+      if(!layers.length){el.textContent='Pick at least one map';return}
+      if(dlMode==='trail'&&dlTrail.length<2){el.textContent='Tap at least 2 points along the trail';return}
+      const sh=curShape(),pl=planShape(sh,layers);
+      let size='';
+      if(sh.kind==='box'){const[s,w,n,e]=sh.b;const hMi=haversine({lat:s,lng:w},{lat:n,lng:w})/1609.34,wMi=haversine({lat:s,lng:w},{lat:s,lng:e})/1609.34;size=`${wMi.toFixed(1)} × ${hMi.toFixed(1)} mi · `}
+      else{let L=0;for(let i=1;i<dlTrail.length;i++)L+=haversine({lat:dlTrail[i-1][0],lng:dlTrail[i-1][1]},{lat:dlTrail[i][0],lng:dlTrail[i][1]});size=`${(L/1609.34).toFixed(1)} mi long · `}
+      el.textContent=`${size}~${pl.mb} MB${pl.zmax<16?' · less close-up detail (big area)':''}`;
+    },120);
+  }
+  $('dlpMode').onclick=e=>{const b=e.target.closest('[data-m]');if(b)setMode(b.dataset.m)};
+  $('dlpWidth').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;dlW=+b.dataset.w;
+    $('dlpWidth').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));redrawEdit()};
+  $('dlpMaps').onclick=e=>{const b=e.target.closest('[data-l]');if(!b)return;dlMaps[b.dataset.l]=!dlMaps[b.dataset.l];b.setAttribute('aria-pressed',dlMaps[b.dataset.l]);estimate()};
+  $('dlpUndo').onclick=()=>{dlTrail.pop();redrawEdit()};
+  $('dlpClear').onclick=()=>{dlTrail=[];redrawEdit()};
+  $('dlpCancel').onclick=endSelect;
+  $('dlpGo').onclick=()=>{
+    const layers=curLayers();if(!layers.length){toast('Pick at least one map');return}
+    if(dlMode==='trail'&&dlTrail.length<2){toast('Tap at least 2 points along the trail');return}
+    const shape=JSON.parse(JSON.stringify(curShape()));endSelect();runDownload(shape,layers);
+  };
+
+  // ---- downloading ----
+  async function runDownload(shape,layers){
     if(!navigator.onLine){toast('You need signal to download');return}
     if(!('caches' in window)){toast('This browser can’t store maps offline');return}
     try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
-    dlCancel=false;
-    openSheet(`<h2 id="sheetTitle">Downloading…</h2>
-      <div style="height:12px;border-radius:6px;background:#EEF0F1;overflow:hidden;margin:10px 0"><div id="dlBar" style="height:100%;width:0;background:var(--flag);transition:width .2s"></div></div>
-      <p class="fine" id="dlTxt" style="font-size:15px">Starting…</p><p class="fine">Keep the app open and the screen on.</p>
-      <div class="row"><button class="b-ghost" id="dlStop">Cancel</button></div>`);
-    $('dlStop').onclick=()=>{dlCancel=true};
-    const urls=[];layers.forEach(k=>urls.push(...tileList(plan.c.lat,plan.c.lng,dlSel.r,8,plan.zmax,DL_LAYERS[k].path)));
+    const pl=planShape(shape,layers),jobs=shapeUrls(shape,layers,pl.zmax);
+    dlCancel=false;dlRunning=true;
+    drawDownloadAreas((await idb.get('downloads').catch(()=>null))||[]);
+    const outline=drawShape(shape,{color:'#E0287D',weight:3,dashArray:'8 6',fillOpacity:.06,interactive:false},dlLayer);
+    try{map.fitBounds(outline.getBounds(),{paddingTopLeft:[20,150],paddingBottomRight:[20,100]})}catch(e){}
+    const bn=$('dlbanner');bn.classList.add('show');
+    $('dlbStop').onclick=()=>{dlCancel=true;$('dlbT').textContent='Stopping…'};
     const cache=await caches.open(OFF_CACHE);let done=0,fail=0,i=0,corsBroke=false;
-    const upd=()=>{const b=$('dlBar'),t=$('dlTxt');if(b)b.style.width=(done/urls.length*85)+'%';if(t)t.textContent=`Map: ${done.toLocaleString()} of ${urls.length.toLocaleString()}${fail?` (${fail} missed)`:''}`};
+    const showZ=Math.max(8,pl.zmax-2),lit=new Set();
+    const upd=j=>{const pct=Math.round(done/jobs.length*100);$('dlbBar').style.width=Math.min(95,pct)+'%';
+      const m=j&&j.u.match(/tile\/(\d+)\/(\d+)\/(\d+)$/);
+      $('dlbT').textContent=`Downloading ${j?DL_LAYERS[j.k].name:''} — ${pct}%`;
+      $('dlbS').textContent=` · detail level ${m?m[1]:''} of ${pl.zmax} · ${done.toLocaleString()} / ${jobs.length.toLocaleString()} pieces${fail?` · ${fail} missed`:''}`};
+    const light=(j,ok)=>{const m=j.u.match(/tile\/(\d+)\/(\d+)\/(\d+)$/);if(!m)return;
+      let z=+m[1],y=+m[2],x=+m[3];if(z<showZ)return;while(z>showZ){x>>=1;y>>=1;z--}
+      const key=`${j.k}/${z}/${x}/${y}`+(ok?'':'!');if(lit.has(key))return;lit.add(key);
+      L.rectangle(tileBounds(z,x,y),{renderer:dlCanvas,weight:.5,color:ok?'#E0287D':'#B3261E',fillColor:ok?'#E0287D':'#B3261E',fillOpacity:ok?.18:.4,interactive:false}).addTo(dlTiles)};
     async function worker(){
-      while(i<urls.length&&!dlCancel){
-        const u=urls[i++];
-        try{
-          if(!(await cache.match(u))){
-            let r;
-            try{r=await fetch(u,{mode:usgsCors?'cors':'no-cors'})}
-            catch(e){if(usgsCors){corsBroke=true;r=await fetch(u,{mode:'no-cors'})}else throw e}
-            if(r.ok||r.type==='opaque')await cache.put(u,r);else fail++;
-          }
-        }catch(e){fail++}
-        done++;if(done%10===0)upd();
+      while(i<jobs.length&&!dlCancel){
+        const j=jobs[i++];let ok=true;
+        try{if(!(await cache.match(j.u))){let r;
+            try{r=await fetch(j.u,{mode:usgsCors?'cors':'no-cors'})}
+            catch(e){if(usgsCors){corsBroke=true;r=await fetch(j.u,{mode:'no-cors'})}else throw e}
+            if(r.ok||r.type==='opaque')await cache.put(j.u,r);else{fail++;ok=false}}
+        }catch(e){fail++;ok=false}
+        done++;light(j,ok);if(done%5===0||done===jobs.length)upd(j);
       }
     }
-    await Promise.all(Array.from({length:6},worker));upd();
+    upd(jobs[0]);
+    await Promise.all(Array.from({length:6},worker));
     if(corsBroke){try{localStorage.setItem('onpoint.usgsCors','0')}catch(e){}}
-    if(dlCancel){closeSheet();toast('Download cancelled — what finished is kept');return}
-    const t=$('dlTxt');if(t)t.textContent='Downloading named places & roads…';
-    let area=null;
-    try{area=await fetchArea(plan.c.lat,plan.c.lng,30,Math.min(dlSel.r,3),x=>{const t=$('dlTxt');if(t)t.textContent=x});await saveArea(area);}catch(e){}
-    const b=$('dlBar');if(b)b.style.width='100%';
+    if(dlCancel){bn.classList.remove('show');dlRunning=false;setTimeout(()=>{dlTiles.clearLayers();dlLayer.clearLayers()},1500);toast('Download cancelled — what finished is kept');return}
+    // Named places & roads for the camera view: a few spots spread over the shape
+    $('dlbT').textContent='Downloading named places & roads…';$('dlbS').textContent='';$('dlbBar').style.width='96%';
+    let spots=[],near=3;
+    const ob=outline.getBounds(),c=ob.getCenter();
+    if(shape.kind==='trail'){
+      const pts=shape.pts.map(p=>({lat:p[0],lng:p[1]}));let total=0;const cum=[0];
+      for(let k=1;k<pts.length;k++){total+=haversine(pts[k-1],pts[k]);cum.push(total)}
+      const n=Math.min(5,Math.max(1,Math.ceil(total/(6*1609.34))));
+      for(let q=0;q<n;q++){const t=(q+.5)/n*total;let k=1;while(k<cum.length-1&&cum[k]<t)k++;
+        const f=(t-cum[k-1])/((cum[k]-cum[k-1])||1);spots.push({lat:pts[k-1].lat+(pts[k].lat-pts[k-1].lat)*f,lng:pts[k-1].lng+(pts[k].lng-pts[k-1].lng)*f})}
+      near=Math.min(3,Math.max(1,total/1609.34/n/2+shape.w));
+    }else{
+      spots=[{lat:c.lat,lng:c.lng}];
+      near=Math.min(3,Math.max(1,haversine(c,ob.getNorthEast())/1609.34));
+    }
+    let placesOk=0,placeCount=0,roadCount=0,firstArea=null;
+    for(const sp of spots){
+      try{const area=await fetchArea(sp.lat,sp.lng,30,near,x=>{$('dlbS').textContent=` · ${x}`});await saveArea(area);
+        placesOk++;placeCount+=area.local.length;roadCount+=area.roads.length;firstArea=firstArea||area}catch(e){}
+    }
+    $('dlbBar').style.width='100%';
     const list=(await idb.get('downloads').catch(()=>null))||[];
-    const name=await nameFor(plan.c,area);
-    list.unshift({name,lat:plan.c.lat,lng:plan.c.lng,r:dlSel.r,zmax:plan.zmax,layers,time:Date.now()});
+    const name=await nameFor(c,firstArea);
+    const id='dl'+Date.now().toString(36);
+    await idb.set('dl:'+id,jobs.map(j=>j.u)).catch(()=>{});
+    list.unshift({id,name,...shape,zmax:pl.zmax,layers,time:Date.now()});
     await idb.set('downloads',list).catch(()=>{});
+    bn.classList.remove('show');dlRunning=false;
+    drawDownloadAreas(list);setTimeout(()=>dlTiles.clearLayers(),2500);
     openSheet(`<h2 id="sheetTitle">Area downloaded ✓</h2>
-      <p class="fine" style="font-size:15px">${esc(name)} · ${dlSel.r} mi around · ${(urls.length-fail).toLocaleString()} map pieces${area?` · ${area.local.length} places · ${area.roads.length} roads`:''}</p>
-      ${fail?`<p class="fine">${fail} pieces didn't download (server busy). Run it again later to fill the gaps — finished pieces are skipped.</p>`:''}
-      ${area?'':'<p class="fine">Named places didn’t download (server busy) — the map part is saved. Try again later for the camera labels.</p>'}
+      <p class="fine" style="font-size:15px">${esc(name)} · ${(jobs.length-fail).toLocaleString()} map pieces${placesOk?` · ${placeCount} places · ${roadCount} roads`:''}</p>
+      ${fail?`<p class="fine">${fail} pieces didn't download (server busy — shown in red). Download the same area again later to fill the gaps; finished pieces are skipped.</p>`:''}
+      ${placesOk<spots.length?'<p class="fine">Some named places didn’t download (server busy). The map part is saved.</p>':''}
       ${corsBroke?'<p class="fine">Close and reopen the app once so the downloaded map shows up.</p>':''}
       <div class="row"><button class="b-primary" id="dlShow">Use downloaded map</button></div>`);
+    onSheetClose=()=>clearDownloadAreas();
     $('dlShow').onclick=()=>{layerState.base=layers[0];applyLayers();closeSheet()};
   }
+  let dlCancel=false;
   async function nameFor(c,area){
     if(area&&area.pois&&area.pois.length){
       const p=area.pois.filter(p=>p.type==='place').map(p=>({p,d:haversine(c,p)})).sort((a,b)=>a.d-b.d)[0];
@@ -1272,15 +1487,33 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     }
     return `${c.lat.toFixed(3)}, ${c.lng.toFixed(3)}`;
   }
+  async function urlsOf(d){
+    if(d.id){const u=await idb.get('dl:'+d.id).catch(()=>null);if(u)return u}
+    return shapeUrls(shapeOf(d),d.layers,d.zmax).map(j=>j.u);
+  }
+  async function showDownloads(){
+    const list=(await idb.get('downloads').catch(()=>null))||[];
+    drawDownloadAreas(list);
+    if(list.length){const g=L.featureGroup(dlLayer.getLayers());try{map.fitBounds(g.getBounds(),{paddingTopLeft:[20,90],paddingBottomRight:[20,Math.round(innerHeight*.55)]})}catch(e){}}
+    const rows=list.map((d,i)=>`<div class="opt" style="cursor:default"><span><span class="ot">${esc(d.name)}</span><span class="od">${d.kind==='trail'?'Trail':'Area'} · ${d.layers.map(k=>DL_LAYERS[k].name).join(' + ')} · ${new Date(d.time).toLocaleDateString()}</span></span>
+      <button class="b-danger" data-del="${i}" style="margin-left:auto;border-radius:10px;padding:8px 12px;font-weight:600">Delete</button></div>`).join('');
+    openSheet(`<h2 id="sheetTitle">Downloads</h2>
+      ${list.length?`<p class="fine" style="margin-top:4px">Green on the map = saved for offline.</p>${rows}`:'<p class="fine">Nothing downloaded yet.</p>'}
+      <div class="row"><button class="b-ghost" id="dmClose">Close</button><button class="b-flag" id="dmNew">⬇ Download another</button></div>`);
+    onSheetClose=()=>clearDownloadAreas();
+    $('dmClose').onclick=closeSheet;
+    $('dmNew').onclick=()=>{onSheetClose=null;closeSheet();startSelect()};
+    $('sheetBody').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteDownload(+b.dataset.del));
+  }
   async function deleteDownload(i){
     const list=(await idb.get('downloads').catch(()=>null))||[];const d=list[i];if(!d)return;
     if(!confirm(`Delete the download for ${d.name}?`))return;
     const cache=await caches.open(OFF_CACHE);
-    // keep pieces another download still uses
-    const keep=new Set();list.forEach((o,j)=>{if(j!==i)o.layers.forEach(k=>tileList(o.lat,o.lng,o.r,8,o.zmax,DL_LAYERS[k].path).forEach(u=>keep.add(u)))});
-    for(const k of d.layers)for(const u of tileList(d.lat,d.lng,d.r,8,d.zmax,DL_LAYERS[k].path))if(!keep.has(u))await cache.delete(u);
+    const keep=new Set();for(let j=0;j<list.length;j++)if(j!==i)(await urlsOf(list[j])).forEach(u=>keep.add(u));
+    for(const u of await urlsOf(d))if(!keep.has(u))await cache.delete(u);
+    if(d.id)await idb.del('dl:'+d.id).catch(()=>{});
     list.splice(i,1);await idb.set('downloads',list).catch(()=>{});
-    toast('Download deleted');showDownload();
+    toast('Download deleted');onSheetClose=null;showDownloads();
   }
   // Lost signal: switch to a downloaded map if you're looking at one that isn't saved
   window.addEventListener('offline',async()=>{
@@ -1314,7 +1547,8 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   window.addEventListener('online',()=>toast('Back online'));
 
   // ---------- actions ----------
-  map.on('click',e=>{ if($('sheet').classList.contains('show')){closeSheet();return} $('hint').style.opacity=0; newPinAt(e.latlng.lat,e.latlng.lng); });
+  map.on('click',e=>{ if(dlSelecting){if(dlMode==='trail'){dlTrail.push([+e.latlng.lat.toFixed(6),+e.latlng.lng.toFixed(6)]);redrawEdit()}return}
+    if($('sheet').classList.contains('show')){closeSheet();return} $('hint').style.opacity=0; newPinAt(e.latlng.lat,e.latlng.lng); });
   $('pinHereBtn').onclick=()=>{ if(!me){toast('No GPS fix yet — tap the map to pin a spot instead');return} newPinAt(me.lat,me.lng); };
   $('listBtn').onclick=showList;
 })();
