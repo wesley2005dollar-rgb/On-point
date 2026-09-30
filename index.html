@@ -116,7 +116,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .you .you-dot{position:absolute;left:46px;top:46px}
 .you .arrow{position:absolute;left:39px;top:39px;width:32px;height:32px;display:none;transition:transform .15s linear;filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
 .you.moving .arrow{display:block}.you.moving .you-dot{display:none}
-.you .cone{position:absolute;left:0;top:0;width:110px;height:110px;display:none;transition:transform .12s linear}
+.you .cone{position:absolute;left:0;top:0;width:110px;height:110px;display:none;transition:transform .2s ease-out}
 .you .cone.on{display:block}
 .tower-ic svg{display:block;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.45))}
 .flag-pin svg{display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}
@@ -307,7 +307,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 15 (map-twist fix)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 16 (smooth look)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -368,9 +368,8 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 
   // ---------- you ----------
   let me=null, meMarker=null, meCircle=null, follow=true;
-  // Looking cone is amber and longer so it reads clearly apart from the blue travel arrow
   const youIcon=L.divIcon({className:'',iconSize:[110,110],iconAnchor:[55,55],
-    html:'<div class="you"><svg class="cone" viewBox="0 0 110 110"><defs><radialGradient id="cg" cx="55" cy="55" r="55" gradientUnits="userSpaceOnUse"><stop offset=".15" stop-color="#F28C28" stop-opacity=".75"/><stop offset="1" stop-color="#F28C28" stop-opacity="0"/></radialGradient></defs><path d="M55 55 L36 2 A56 56 0 0 1 74 2 Z" fill="url(#cg)"/><path d="M55 55 L55 6" stroke="#F28C28" stroke-width="2" stroke-dasharray="3 4" stroke-linecap="round"/></svg><div class="you-dot"></div><svg class="arrow" viewBox="0 0 32 32"><path d="M16 2 28 28 16 22 4 28Z" fill="#1E7FD8" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg></div>'});
+    html:'<div class="you"><svg class="cone" viewBox="0 0 110 110"><defs><radialGradient id="cg" cx="55" cy="55" r="55" gradientUnits="userSpaceOnUse"><stop offset=".15" stop-color="#1E7FD8" stop-opacity=".6"/><stop offset="1" stop-color="#1E7FD8" stop-opacity="0"/></radialGradient></defs><path d="M55 55 L36 2 A56 56 0 0 1 74 2 Z" fill="url(#cg)"/></svg><div class="you-dot"></div><svg class="arrow" viewBox="0 0 32 32"><path d="M16 2 28 28 16 22 4 28Z" fill="#1E7FD8" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg></div>'});
   let gpsHeading=null,gpsSpeed=0;
   function onPos(pos){
     const {latitude:lat,longitude:lng,accuracy:acc}=pos.coords;
@@ -583,15 +582,20 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     }
     if(target!=null){
       if(anchor==null)anchor=target;
-      else if(!inVehicle()){const d=angDiff(target,anchor);anchor+=d*(Math.abs(d)>40?0.01:0.03)}
+      else if(!inVehicle()){const d=angDiff(target,anchor);anchor+=d*(Math.abs(d)>40?0.002:0.006)}
     }
     if(anchor==null||!lastRel)return;
     const h=lookHeading(lastRel.alpha,lastRel.beta,lastRel.gamma);if(h==null)return;
     const fused=(h+anchor+360)%360;
     compassRaw=fused;
     const t=(fused+compassOffset+360)%360;
-    dispH=dispH==null?t:(dispH+angDiff(t,dispH)*0.5+360)%360;
-    const now=performance.now();if(now-lastT<60)return;lastT=now;
+    // Time-based smoothing (~0.25 s), so it glides instead of twitching
+    const now=performance.now(),dt=Math.min(0.2,(now-(onOrient.t||now))/1000);onOrient.t=now;
+    const k=dispH==null?1:1-Math.exp(-dt/0.25);
+    dispH=dispH==null?t:(dispH+angDiff(t,dispH)*k+360)%360;
+    if(now-lastT<50)return;
+    if(compassH!=null&&Math.abs(angDiff(dispH,compassH))<1.5)return;   // ignore tiny wiggles
+    lastT=now;
     compassH=dispH;drawDirection();if(calTick)calTick();
     if(headingOn){const hh=currentHeading();
       if(hh!=null&&(lastSet==null||Math.abs(angDiff(hh,lastSet))>=2)){lastSet=hh;map.setBearing(-hh)}}
