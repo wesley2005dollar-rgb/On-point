@@ -106,6 +106,29 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .tools{display:flex;gap:10px;margin-top:16px}
 .tools button{flex:1;height:44px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-weight:600}
 
+/* First-person camera view */
+.ar{position:fixed;inset:0;z-index:1100;background:#000;display:none;overflow:hidden}
+.ar.show{display:block}
+.ar video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ar-labels{position:absolute;inset:0}
+.ar-top{position:absolute;left:0;right:0;top:0;padding:calc(var(--safe-t) + 10px) 12px 10px;display:flex;align-items:center;gap:10px;background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,0));color:#fff;z-index:3}
+.ar-top .hd{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:26px;letter-spacing:.5px}
+.ar-top .sub{font-size:13px;opacity:.8}
+.ar-top button{margin-left:auto;width:44px;height:44px;border-radius:12px;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:22px}
+.ar-bot{position:absolute;left:0;right:0;bottom:0;padding:10px 12px calc(var(--safe-b) + 12px);background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.6));color:#fff;z-index:3}
+.ar-chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}
+.ar-chips button{flex:none;border:1.5px solid rgba(255,255,255,.5);background:rgba(0,0,0,.35);color:#fff;border-radius:18px;padding:7px 12px;font-size:14px;font-weight:600}
+.ar-chips button[aria-pressed=true]{background:#fff;color:var(--ink);border-color:#fff}
+.ar-range{display:flex;align-items:center;gap:10px;font-size:13px}
+.ar-range input{flex:1}
+.ar-horizon{position:absolute;left:0;right:0;height:0;border-top:1px dashed rgba(255,255,255,.35);z-index:1;pointer-events:none}
+.ar-tag{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;z-index:2;cursor:pointer}
+.ar-tag .pill{background:rgba(250,250,247,.94);color:var(--ink);border-radius:10px;padding:5px 9px;font-size:13px;line-height:1.2;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35);text-align:center}
+.ar-tag .pill b{display:block;font-size:14px}
+.ar-tag .stem{width:2px;background:rgba(255,255,255,.85);box-shadow:0 0 2px rgba(0,0,0,.6)}
+.ar-tag .dotp{width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid var(--ink)}
+.ar-edge{position:absolute;top:50%;z-index:2;background:rgba(0,0,0,.5);color:#fff;border-radius:8px;padding:5px 8px;font-size:12px;pointer-events:none}
+.ar-msg{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);background:rgba(0,0,0,.6);color:#fff;padding:12px 16px;border-radius:12px;font-size:15px;text-align:center;max-width:80vw;z-index:2;display:none}
 /* Toast */
 .toast{position:absolute;left:50%;bottom:calc(var(--safe-b) + 84px);transform:translate(-50%,20px);z-index:1200;background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:15px;opacity:0;pointer-events:none;transition:all .25s;max-width:88vw;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -167,6 +190,9 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 <div class="legend" id="legend" aria-hidden="true"><b id="legendTitle">Water temp</b><div class="bar"></div><div class="ends"><span>Colder</span><span>Warmer</span></div></div>
 
 <div class="fab-col">
+  <button class="fab" id="arBtn" aria-label="First-person camera view" title="Look around">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 8h3.5L8 5.5h8L17.5 8H21v11H3z"/><circle cx="12" cy="13.5" r="3.6"/></svg>
+  </button>
   <button class="fab" id="compassBtn" aria-label="Compass: tap to point north, tap again to follow your heading" title="Compass">
     <svg viewBox="0 0 24 24" aria-hidden="true"><g id="needle" style="transform-origin:12px 12px"><path d="M12 2.5 15 12H9z" fill="#E0287D"/><path d="M12 21.5 9 12h6z" fill="currentColor" opacity=".55"/></g><circle cx="12" cy="12" r="1.6" fill="#fff"/></svg>
   </button>
@@ -186,6 +212,17 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <div id="sheetBody"></div>
 </section>
 <div class="toast" id="toast" role="status"></div>
+<section class="ar" id="ar" aria-label="First-person view">
+  <video id="arVideo" playsinline muted autoplay></video>
+  <div class="ar-horizon" id="arHorizon"></div>
+  <div class="ar-labels" id="arLabels"></div>
+  <div class="ar-msg" id="arMsg"></div>
+  <div class="ar-top"><div><div class="hd" id="arHead">—</div><div class="sub" id="arSub">Point your phone at what you want to know</div></div><button id="arClose" aria-label="Close camera view">✕</button></div>
+  <div class="ar-bot">
+    <div class="ar-chips" id="arChips"></div>
+    <div class="ar-range"><span>Range</span><input type="range" id="arRange" min="1" max="60" step="1" value="25" aria-label="How far to show"><span id="arRangeV">25 mi</span></div>
+  </div>
+</section>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -307,7 +344,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 16 (smooth look)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 17 (first-person view)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -373,7 +410,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   let gpsHeading=null,gpsSpeed=0;
   function onPos(pos){
     const {latitude:lat,longitude:lng,accuracy:acc}=pos.coords;
-    const first=!me; me={lat,lng,acc}; lastFix=Date.now();
+    const first=!me; me={lat,lng,acc,alt:(typeof pos.coords.altitude==='number'?pos.coords.altitude:(me&&me.alt)||null)}; lastFix=Date.now();
     gpsSpeed=pos.coords.speed||0;if(gpsSpeed>=3.6)lastDriveAt=Date.now();
     gpsHeading=(typeof pos.coords.heading==='number'&&!isNaN(pos.coords.heading))?pos.coords.heading:null;
     if(!meMarker){meMarker=L.marker([lat,lng],{icon:youIcon,interactive:false,zIndexOffset:1000}).addTo(map);
@@ -773,6 +810,168 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       save();setCount();closeSheet();toast(added?`Imported ${added} pin${added>1?'s':''}`:'No new pins in that file');
     }catch(err){toast('That file isn’t an On Point backup')}
   };
+
+  // ---------- first-person camera view ----------
+  // Live camera with labels for what's around: mountains, towns, lookouts, waterfalls,
+  // your pins and cell towers. Each label is placed by its compass direction and, when
+  // the height is known, how high above or below you it is.
+  const AR_TYPES={
+    peak:{label:'⛰ Peaks',icon:'⛰'},place:{label:'🏘 Towns',icon:'🏘'},
+    sight:{label:'👁 Lookouts & falls',icon:'👁'},pin:{label:'⚑ My pins',icon:'⚑'},tower:{label:'📡 Towers',icon:'📡'}};
+  let arOn=false,arStream=null,arRaf=0,arPois=[],arFetchedAt=null,arTowers=[],arTowersAt=null,arFovAdj=1;
+  let arShow={peak:true,place:true,sight:true,pin:true,tower:false},arRangeMi=25;
+  try{const v=JSON.parse(localStorage.getItem('onpoint.ar'));if(v){Object.assign(arShow,v.show||{});if(v.range)arRangeMi=v.range}}catch(e){}
+  function arSave(){try{localStorage.setItem('onpoint.ar',JSON.stringify({show:arShow,range:arRangeMi}))}catch(e){}}
+  const bearingTo=(a,b)=>{const r=Math.PI/180,y=Math.sin((b.lng-a.lng)*r)*Math.cos(b.lat*r),
+    x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lng-a.lng)*r);return (Math.atan2(y,x)/r+360)%360};
+  const CARD=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+
+  function arChips(){
+    $('arChips').innerHTML=Object.entries(AR_TYPES).map(([k,t])=>`<button data-k="${k}" aria-pressed="${!!arShow[k]}">${t.label}</button>`).join('');
+  }
+  $('arChips').onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;const k=b.dataset.k;arShow[k]=!arShow[k];
+    b.setAttribute('aria-pressed',arShow[k]);arSave();if(k==='tower'&&arShow.tower)arLoadTowers(true)};
+  $('arRange').oninput=e=>{arRangeMi=+e.target.value;$('arRangeV').textContent=arRangeMi+' mi';arSave()};
+  $('arRange').onchange=()=>arLoad(true);
+
+  async function arLoad(force){
+    if(!me)return;
+    if(!force&&arFetchedAt&&haversine(me,arFetchedAt.at)<3000&&arFetchedAt.range>=arRangeMi)return;
+    const R=Math.round(arRangeMi*1609.34),R2=Math.min(R,20000);
+    const q=`[out:json][timeout:25];(
+      node["natural"~"^(peak|volcano|hill)$"]["name"](around:${R},${me.lat},${me.lng});
+      node["place"~"^(city|town)$"]["name"](around:${R},${me.lat},${me.lng});
+      node["place"~"^(village|hamlet)$"]["name"](around:${R2},${me.lat},${me.lng});
+      node["tourism"="viewpoint"]["name"](around:${R2},${me.lat},${me.lng});
+      node["waterway"="waterfall"]["name"](around:${R2},${me.lat},${me.lng});
+    );out body 600;`;
+    arMsg('Finding what’s around you…');
+    try{
+      const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+      const d=await r.json();
+      arPois=(d.elements||[]).map(n=>{const t=n.tags||{};
+        const type=t.natural?'peak':t.place?'place':'sight';
+        let ele=parseFloat(String(t.ele||'').replace(',','.'));if(!isFinite(ele))ele=null;
+        const sub=t.natural?(t.natural==='hill'?'Hill':'Peak'):t.place?t.place[0].toUpperCase()+t.place.slice(1):(t.tourism==='viewpoint'?'Lookout':'Waterfall');
+        return {type,name:t.name,sub,lat:n.lat,lng:n.lon,ele,rank:t.place==='city'?0:t.place==='town'?1:t.natural?1:2};
+      });
+      arFetchedAt={at:{lat:me.lat,lng:me.lng},range:arRangeMi};
+      arMsg(arPois.length?'':'Nothing named found in range — try a longer range');
+      if(arPois.length)setTimeout(()=>arMsg(''),10);
+    }catch(e){arMsg('Couldn’t load places — check your signal');setTimeout(()=>arMsg(''),3000)}
+    if(arShow.tower)arLoadTowers(false);
+  }
+  async function arLoadTowers(force){
+    if(!me)return;
+    if(!force&&arTowersAt&&haversine(me,arTowersAt)<2000)return;
+    const q=new URLSearchParams({where:'1=1',geometry:`${me.lng},${me.lat}`,geometryType:'esriGeometryPoint',inSR:'4326',
+      distance:'16000',units:'esriSRUnit_Meter',spatialRel:'esriSpatialRelIntersects',outFields:'*',outSR:'4326',returnGeometry:'true',resultRecordCount:'300',f:'json'});
+    try{const d=await (await fetch(TOWER_URL+'?'+q)).json();
+      arTowers=(d.features||[]).filter(f=>f.geometry).map(f=>{const a=f.attributes||{};
+        return {type:'tower',name:pick(a,/licens|owner|entity|company/i)||'Cell tower',sub:'Cell tower',lat:f.geometry.y,lng:f.geometry.x,ele:null,rank:3}});
+      arTowersAt={lat:me.lat,lng:me.lng};
+    }catch(e){}
+  }
+  function arMsg(t){const m=$('arMsg');m.textContent=t;m.style.display=t?'block':'none'}
+
+  // Camera orientation: which way the back camera points and how far it's tilted up/down
+  function arPose(){
+    if(!lastRel||compassH==null)return null;
+    const r=Math.PI/180,b=lastRel.beta*r,g=lastRel.gamma*r;
+    const pitch=Math.asin(Math.max(-1,Math.min(1,-Math.cos(b)*Math.cos(g))))/r;
+    return {heading:compassH,pitch};
+  }
+  // Field of view actually visible on screen (camera image is cropped to fill it)
+  function arFov(){
+    const v=$('arVideo'),W=innerWidth,H=innerHeight,vw=v.videoWidth||3,vh=v.videoHeight||4;
+    const LONG=68,SHORT=53;                       // typical phone main camera, degrees
+    const vf=vw>=vh?{h:LONG,v:SHORT}:{h:SHORT,v:LONG};
+    const sc=Math.max(W/vw,H/vh),tx=Math.tan(vf.h*Math.PI/360)*(W/(vw*sc)),ty=Math.tan(vf.v*Math.PI/360)*(H/(vh*sc));
+    return {tx:tx*arFovAdj,ty:ty*arFovAdj};
+  }
+  function arFrame(){
+    if(!arOn)return;
+    arRaf=requestAnimationFrame(arFrame);
+    const pose=arPose(),L=$('arLabels'),W=innerWidth,H=innerHeight;
+    if(!pose||!me){$('arHead').textContent='—';L.innerHTML='';
+      arMsg(!me?'Waiting for your location…':'Turn on the compass: tap once and allow motion access');return}
+    if($('arMsg').textContent.startsWith('Waiting')||$('arMsg').textContent.startsWith('Turn on'))arMsg('');
+    const h=pose.heading;$('arHead').textContent=`${CARD[Math.round(h/22.5)%16]} ${Math.round(h)}°`;
+    $('arSub').textContent=Math.abs(pose.pitch)>60?'Hold the phone upright to look around':'Tap a label for details';
+    const f=arFov(),r=Math.PI/180;
+    const yFor=el=>H/2-Math.tan((el-pose.pitch)*r)/f.ty*(H/2);
+    $('arHorizon').style.top=yFor(0)+'px';
+    const myAlt=me.alt;
+    const items=[];
+    const add=(p)=>{
+      const d=haversine(me,p);if(d>arRangeMi*1609.34||d<15)return;
+      const rel=angDiff(bearingTo(me,p),h);
+      if(Math.abs(rel)>=85)return;
+      const x=W/2+Math.tan(rel*r)/f.tx*(W/2);
+      if(x<-60||x>W+60)return;
+      let el=0;
+      if(p.ele!=null&&myAlt!=null){const drop=d*d/(2*6371000)*0.87;el=Math.atan2(p.ele-myAlt-drop,d)/r}
+      items.push({p,d,x,y:yFor(el)});
+    };
+    if(arShow.peak||arShow.place||arShow.sight)arPois.forEach(p=>{if(arShow[p.type])add(p)});
+    if(arShow.pin)pins.forEach(p=>add({type:'pin',name:p.title,sub:'Your pin',lat:p.lat,lng:p.lng,ele:null,rank:0,color:p.color,id:p.id}));
+    if(arShow.tower)arTowers.forEach(add);
+    // Most important first: your pins, big places, then nearer things
+    items.sort((a,b)=>(a.p.rank-b.p.rank)||(a.d-b.d));
+    const placed=[],out=[];
+    for(const it of items){
+      if(placed.length>=22)break;
+      const w=Math.max(70,Math.min(180,it.p.name.length*7.5+20)),hgt=40;
+      let top=it.y-24-hgt,ok=false;
+      for(let lvl=0;lvl<5;lvl++){
+        const box={l:it.x-w/2,r:it.x+w/2,t:top,b:top+hgt};
+        if(!placed.some(q=>box.l<q.r&&box.r>q.l&&box.t<q.b&&box.b>q.t)){placed.push(box);ok=true;break}
+        top-=hgt+6;
+      }
+      if(!ok)continue;
+      const stem=Math.max(8,it.y-(top+hgt));
+      const col=it.p.color?`style="border-left:4px solid ${it.p.color}"`:'';
+      out.push(`<div class="ar-tag" style="left:${it.x.toFixed(0)}px;top:${(top+hgt+stem+5).toFixed(0)}px" data-i="${items.indexOf(it)}">
+        <div class="pill" ${col}><b>${AR_TYPES[it.p.type].icon} ${esc(it.p.name)}</b>${fmtDist(it.d)}${it.p.ele!=null?' · '+Math.round(it.p.ele*3.28084).toLocaleString()+' ft':''}</div>
+        <div class="stem" style="height:${stem.toFixed(0)}px"></div><div class="dotp"></div></div>`);
+    }
+    arItems=items;
+    L.innerHTML=out.join('');
+  }
+  let arItems=[];
+  $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t)return;const it=arItems[+t.dataset.i];if(!it)return;arDetails(it)};
+  function arDetails(it){
+    const p=it.p,b=bearingTo(me,p);
+    closeAR();
+    if(p.type==='pin'){showPin(p.id);return}
+    openSheet(`<h2 id="sheetTitle">${AR_TYPES[p.type].icon} ${esc(p.name)}</h2>
+      <div class="coords">${esc(p.sub)} · ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</div>
+      <span class="dist">${fmtDist(it.d)} ${CARD[Math.round(b/22.5)%16]}</span>${p.ele!=null?`<span class="dist">${Math.round(p.ele*3.28084).toLocaleString()} ft high</span>`:''}
+      <div class="row"><button class="b-primary" id="aMap">Show on map</button><button class="b-flag" id="aPin">Pin it</button></div>
+      <div class="row" style="margin-top:10px"><button class="b-ghost" id="aNav">Directions</button><button class="b-ghost" id="aBack">Back to camera</button></div>`);
+    $('aMap').onclick=()=>{closeSheet();follow=false;$('locBtn').classList.remove('on');map.setView([p.lat,p.lng],14)};
+    $('aPin').onclick=()=>{newPinAt(p.lat,p.lng);setTimeout(()=>{const f=$('fTitle');if(f)f.value=p.name},30)};
+    $('aNav').onclick=()=>window.open(`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`,'_blank');
+    $('aBack').onclick=()=>{closeSheet();openAR()};
+  }
+  async function openAR(){
+    enableCompass(true);
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('Camera isn’t available in this browser');return}
+    try{
+      arStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
+    }catch(e){toast(e.name==='NotAllowedError'?'Camera access was declined — allow it in Safari settings':'Couldn’t start the camera');return}
+    const v=$('arVideo');v.srcObject=arStream;try{await v.play()}catch(e){}
+    arChips();$('arRange').value=arRangeMi;$('arRangeV').textContent=arRangeMi+' mi';
+    $('ar').classList.add('show');arOn=true;arLoad(false);arFrame();
+  }
+  function closeAR(){
+    arOn=false;cancelAnimationFrame(arRaf);$('ar').classList.remove('show');
+    if(arStream){arStream.getTracks().forEach(t=>t.stop());arStream=null}
+    $('arVideo').srcObject=null;arMsg('');
+  }
+  $('arBtn').onclick=openAR;
+  $('arClose').onclick=closeAR;
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&arOn)closeAR()});
 
   // ---------- actions ----------
   map.on('click',e=>{ if($('sheet').classList.contains('show')){closeSheet();return} $('hint').style.opacity=0; newPinAt(e.latlng.lat,e.latlng.lng); });
