@@ -253,13 +253,18 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   });
   const gibs=name=>`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${name}/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`;
 
+  const USGS=n=>`https://basemap.nationalmap.gov/arcgis/rest/services/${n}/MapServer/tile/{z}/{y}/{x}`;
+  let usgsCors=true;try{usgsCors=localStorage.getItem('onpoint.usgsCors')!=='0'}catch(e){}
+  const usgsOpts=()=>Object.assign({maxZoom:20,maxNativeZoom:16,attribution:'USGS The National Map'},usgsCors?{crossOrigin:'anonymous'}:{});
   const BASES={
-    street:{name:'Street',desc:'Roads, trails and place names',layer:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'})},
-    sat:{name:'Satellite',desc:'Aerial photos',layer:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:17,attribution:'Imagery © Esri'})},
-    topo:{name:'Topo',desc:'Terrain contour lines, shorelines and creeks',layer:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:17,attribution:'© OpenTopoMap, OpenStreetMap'})},
+    street:{name:'Street',desc:'Roads, trails and place names',layer:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'})},
+    sat:{name:'Satellite',desc:'Aerial photos',layer:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:17,attribution:'Imagery © Esri'})},
+    topo:{name:'Topo',desc:'Terrain contour lines, shorelines and creeks',layer:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:17,attribution:'© OpenTopoMap, OpenStreetMap'})},
+    usgs:{name:'USGS Topo ⬇',desc:'Government topo map with roads, creeks & names — can be downloaded for offline',layer:L.tileLayer(USGS('USGSTopo'),usgsOpts())},
+    usgsimg:{name:'USGS Satellite + names ⬇',desc:'Aerial photos with road & place names — can be downloaded for offline',layer:L.tileLayer(USGS('USGSImageryTopo'),usgsOpts())},
     ocean:{name:'Ocean depth',desc:'Sea-floor shading by depth, offshore and along the coast',layer:L.layerGroup([
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:13,attribution:'Ocean © Esri, GEBCO, NOAA'}),
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:13})])}
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:13,attribution:'Ocean © Esri, GEBCO, NOAA'}),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}',{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:13})])}
   };
   // Cell towers: FCC licensing data via HIFLD, fetched for whatever area is on screen
   const TOWER_URL='https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/Cellular_Towers_in_the_United_States/FeatureServer/0/query';
@@ -316,10 +321,10 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     marks:{name:'Buoys & markers',desc:'Channel markers, buoys and lights (OpenSeaMap)',
       layer:L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:18,zIndex:6,attribution:'© OpenSeaMap'})},
     sst:{name:'Ocean water temp',desc:'NASA daily sea-surface temperature, about 1 km detail',temp:'Ocean water temp',
-      layer:L.tileLayer(gibs('GHRSST_L4_MUR_Sea_Surface_Temperature'),{maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'SST © NASA GIBS'})},
+      layer:L.tileLayer(gibs('GHRSST_L4_MUR_Sea_Surface_Temperature'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'SST © NASA GIBS'})},
     towers:{name:'Cell towers',desc:'FCC-licensed cellular sites near you. Not every carrier site is listed. Zoom in to load',layer:towers},
     lst:{name:'Land & lake surface temp',desc:'NASA daily daytime surface temp. Gaps where it was cloudy',temp:'Surface temp',
-      layer:L.tileLayer(gibs('MODIS_Terra_Land_Surface_Temp_Day'),{maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'LST © NASA GIBS'})}
+      layer:L.tileLayer(gibs('MODIS_Terra_Land_Surface_Temp_Day'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'LST © NASA GIBS'})}
   };
   const PREF='onpoint.layers.v1';
   let layerState={base:'street',on:[]};
@@ -340,11 +345,14 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     openSheet(`<h2 id="sheetTitle">Map layers</h2>
       <div class="sec">Base map</div><div id="bases" role="radiogroup">${base}</div>
       <div class="sec">Overlays</div><div id="ovs">${ov}</div>
+      <div class="sec">Offline</div>
+      <button class="opt" id="offSave"><span><span class="ot">⬇ Download an area</span><span class="od">Map + named places & roads for wherever the map is centered, to use with no signal</span></span></button>
+      <p class="fine" id="offInfo" style="margin-top:2px"></p>
       <div class="sec">Compass</div>
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 19 (faster camera labels)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 21 (download areas)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -353,6 +361,11 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       if(layerState.on.includes(k)&&(OVERLAYS[k].layer.options||{}).maxNativeZoom===7&&map.getZoom()>11)toast('Zoom out to see the temperature pattern');};
     $('doneB').onclick=closeSheet;
     $('calOpen').onclick=showCalibrate;
+    $('offSave').onclick=showDownload;
+    idb.get('areas').then(a=>{const el=$('offInfo');if(!el)return;a=a||[];
+      el.textContent=(a.length?`${a.length} area${a.length>1?'s':''} saved. `:'No areas saved yet. ')+
+        'Map tiles you look at while online are kept automatically — pan and zoom around an area before you lose signal.'+
+        (navigator.serviceWorker&&navigator.serviceWorker.controller?'':' (Offline app not active yet — reopen the app once.)')}).catch(()=>{});
   }
   $('layerBtn').onclick=showLayers;
 
@@ -873,88 +886,144 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     if(/^(track|service)/.test(h))return 'Dirt / service road';
     return 'Path';
   }
+  // ---- OpenStreetMap place data: several servers to try, plus saved copies for offline ----
+  const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
   async function overpass(q){
-    const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
-    if(!r.ok)throw new Error('overpass '+r.status);
-    return r.json();
+    let last;
+    for(const url of OVERPASS){
+      const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),45000);
+      try{
+        const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:ctl.signal});
+        clearTimeout(tm);
+        if(!r.ok){last=new Error('server '+r.status);continue}
+        const d=await r.json();
+        if(d.remark&&/runtime error|timed out|out of memory/i.test(d.remark)&&!(d.elements||[]).length){last=new Error(d.remark);continue}
+        return d;
+      }catch(e){clearTimeout(tm);last=e}
+    }
+    throw last||new Error('no server');
   }
-  async function arLoadLocal(){
-    const R3=Math.round(Math.min(arRangeMi,2)*1609.34),R4=Math.round(Math.min(arRangeMi,1.5)*1609.34),c=`${me.lat},${me.lng}`;
-    const q=`[out:json][timeout:25];(
-      node["name"][!"highway"][!"place"][!"natural"](around:${R3},${c});
-      way["name"][!"highway"][!"place"](around:${R3},${c});
-      nwr["power"="substation"](around:${R3},${c});
-      nwr["amenity"="place_of_worship"](around:${R3},${c});
-    );out center 800;
-    way["highway"]["name"](around:${R4},${c});out geom 400;`;
-    const d=await overpass(q);
+  // Tiny IndexedDB key-value store (holds much more than localStorage)
+  const idb=(()=>{let dbp=null;
+    const open=()=>dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open('onpoint',1);
+      r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
+    const tx=(mode,fn)=>open().then(db=>new Promise((res,rej)=>{const t=db.transaction('kv',mode),st=t.objectStore('kv'),q=fn(st);
+      t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)}));
+    return {get:k=>tx('readonly',st=>st.get(k)),set:(k,v)=>tx('readwrite',st=>st.put(v,k)),del:k=>tx('readwrite',st=>st.delete(k))};
+  })();
+
+  function parsePois(d){
+    return (d.elements||[]).map(n=>{const t=n.tags||{};
+      const type=t.natural?'peak':t.place?'place':'sight';
+      let ele=parseFloat(String(t.ele||'').replace(',','.'));if(!isFinite(ele))ele=null;
+      const sub=t.natural?(t.natural==='hill'?'Hill':'Peak'):t.place?t.place[0].toUpperCase()+t.place.slice(1):(t.tourism==='viewpoint'?'Lookout':'Waterfall');
+      return {type,name:t.name,sub,lat:n.lat,lng:n.lon,ele,rank:t.place==='city'?0:t.place==='town'?1:t.natural?1:2};
+    }).filter(p=>p.name&&typeof p.lat==='number');
+  }
+  function parseLocal(d){
     const local=[],roads=new Map();
     for(const n of d.elements||[]){
       const t=n.tags||{};
       if(t.highway&&n.geometry){
         if(!t.name)continue;
-        const key=t.name;let rd=roads.get(key);
-        if(!rd){rd={type:'road',name:t.name,sub:arRoadType(t.highway),icon:'🛣',rank:2,pts:[]};roads.set(key,rd)}
-        // Break the road into points every ~50 m so a label can sit wherever you're looking along it
+        let rd=roads.get(t.name);
+        if(!rd){rd={type:'road',name:t.name,sub:arRoadType(t.highway),pts:[]};roads.set(t.name,rd)}
         const g=n.geometry;
         for(let i=0;i<g.length;i++){
-          rd.pts.push({lat:g[i].lat,lng:g[i].lon});
-          if(i<g.length-1){const A={lat:g[i].lat,lng:g[i].lon},B={lat:g[i+1].lat,lng:g[i+1].lon},L=haversine(A,B),k=Math.floor(L/50);
-            for(let j=1;j<k;j++)rd.pts.push({lat:A.lat+(B.lat-A.lat)*j/k,lng:A.lng+(B.lng-A.lng)*j/k})}
+          if(!g[i])continue;rd.pts.push([+g[i].lat.toFixed(6),+g[i].lon.toFixed(6)]);
+          if(i<g.length-1&&g[i+1]){const A={lat:g[i].lat,lng:g[i].lon},B={lat:g[i+1].lat,lng:g[i+1].lon},k=Math.floor(haversine(A,B)/50);
+            for(let j=1;j<k;j++)rd.pts.push([+(A.lat+(B.lat-A.lat)*j/k).toFixed(6),+(A.lng+(B.lng-A.lng)*j/k).toFixed(6)])}
         }
         continue;
       }
       const lat=n.lat??(n.center&&n.center.lat),lng=n.lon??(n.center&&n.center.lon);
-      if(lat==null||lng==null)continue;
-      if(t.boundary||t.route||t.admin_level)continue;
-      const [icon,sub]=arClassify(t);
-      const name=t.name||sub;
-      if(local.some(x=>x.name===name&&haversine(x,{lat,lng})<80))continue;
+      if(lat==null||lng==null||t.boundary||t.route||t.admin_level)continue;
+      const [icon,sub]=arClassify(t),name=t.name||sub;
+      if(local.some(x=>x.name===name&&Math.abs(x.lat-lat)<0.0008&&Math.abs(x.lng-lng)<0.0008))continue;
       local.push({type:'local',name,sub,icon,lat,lng,ele:null,hgt:4,rank:2});
     }
-    arLocal=local;arRoads=[...roads.values()];arRoadPickAt=0;arDataVer++;
+    return {local,roads:[...roads.values()]};
   }
-
-  async function arLoad(force){
-    if(!me)return;
-    if(!force&&arFetchedAt&&haversine(me,arFetchedAt.at)<3000&&arFetchedAt.range>=arRangeMi)return;
-    const R=Math.round(arRangeMi*1609.34),R2=Math.min(R,20000);
-    const q=`[out:json][timeout:25];(
-      node["natural"~"^(peak|volcano|hill)$"]["name"](around:${R},${me.lat},${me.lng});
-      node["place"~"^(city|town)$"]["name"](around:${R},${me.lat},${me.lng});
-      node["place"~"^(village|hamlet)$"]["name"](around:${R2},${me.lat},${me.lng});
-      node["tourism"="viewpoint"]["name"](around:${R2},${me.lat},${me.lng});
-      node["waterway"="waterfall"]["name"](around:${R2},${me.lat},${me.lng});
-    );out body 600;`;
-    arMsg('Finding what’s around you…');
-    // Nearby places and roads load at the same time, not after the big search
-    const localJob=arLoadLocal().then(()=>{if(arLocal.length||arRoads.length)arMsg('')}).catch(()=>toast('Couldn’t load nearby places'));
+  // Download everything for an area. Two queries, one after the other (servers limit parallel requests).
+  async function fetchArea(lat,lng,farMi,nearMi,progress){
+    const c=`${lat},${lng}`,R=Math.round(farMi*1609.34),R2=Math.min(R,20000),N=Math.round(nearMi*1609.34);
+    progress&&progress('Downloading towns & peaks…');
+    const far=await overpass(`[out:json][timeout:60];(
+      node["natural"~"^(peak|volcano|hill)$"]["name"](around:${R},${c});
+      node["place"~"^(city|town)$"]["name"](around:${R},${c});
+      node["place"~"^(village|hamlet)$"]["name"](around:${R2},${c});
+      node["tourism"="viewpoint"]["name"](around:${R2},${c});
+      node["waterway"="waterfall"]["name"](around:${R2},${c});
+    );out body 800;`);
+    progress&&progress('Downloading nearby places & roads…');
+    const near=await overpass(`[out:json][timeout:90];(
+      node["name"][!"highway"][!"place"][!"natural"](around:${N},${c});
+      way["name"][!"highway"][!"place"][!"boundary"](around:${N},${c});
+      nwr["power"="substation"](around:${N},${c});
+      nwr["amenity"="place_of_worship"](around:${N},${c});
+    );out center 1500;
+    way["highway"]["name"](around:${N},${c});out geom 800;`);
+    const {local,roads}=parseLocal(near);
+    return {lat,lng,farMi,nearMi,time:Date.now(),pois:parsePois(far),local,roads};
+  }
+  async function saveArea(area){
     try{
-      const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
-      const d=await r.json();
-      arPois=(d.elements||[]).map(n=>{const t=n.tags||{};
-        const type=t.natural?'peak':t.place?'place':'sight';
-        let ele=parseFloat(String(t.ele||'').replace(',','.'));if(!isFinite(ele))ele=null;
-        const sub=t.natural?(t.natural==='hill'?'Hill':'Peak'):t.place?t.place[0].toUpperCase()+t.place.slice(1):(t.tourism==='viewpoint'?'Lookout':'Waterfall');
-        return {type,name:t.name,sub,lat:n.lat,lng:n.lon,ele,rank:t.place==='city'?0:t.place==='town'?1:t.natural?1:2};
-      });
-      arFetchedAt={at:{lat:me.lat,lng:me.lng},range:arRangeMi};arDataVer++;
-      if(arPois.length||arLocal.length)arMsg('');
-      if(arPois.length)setTimeout(()=>arMsg(''),10);
-    }catch(e){arMsg('Couldn’t load places — check your signal');setTimeout(()=>arMsg(''),3000)}
+      const idx=(await idb.get('areas'))||[];
+      const key=`area:${area.lat.toFixed(3)},${area.lng.toFixed(3)}`;
+      await idb.set(key,area);
+      const rest=idx.filter(x=>x.key!==key);rest.unshift({key,lat:area.lat,lng:area.lng,nearMi:area.nearMi,farMi:area.farMi,time:area.time,
+        counts:[area.pois.length,area.local.length,area.roads.length]});
+      for(const old of rest.slice(12))await idb.del(old.key);          // keep the 12 most recent areas
+      await idb.set('areas',rest.slice(0,12));
+    }catch(e){}
+  }
+  async function savedAreaFor(pt){
+    try{
+      const idx=(await idb.get('areas'))||[];
+      const hit=idx.map(a=>({a,d:haversine(pt,a)})).filter(x=>x.d<x.a.nearMi*1609.34*0.75).sort((x,y)=>x.d-y.d)[0];
+      return hit?await idb.get(hit.a.key):null;
+    }catch(e){return null}
+  }
+  function useArea(area){
+    arPois=area.pois||[];arLocal=area.local||[];
+    arRoads=(area.roads||[]).map(r=>({...r,pts:r.pts.map(q=>Array.isArray(q)?{lat:q[0],lng:q[1]}:q)}));
+    arFetchedAt={at:{lat:area.lat,lng:area.lng},range:area.farMi,near:area.nearMi};
+    arRoadPickAt=0;arDataVer++;
+  }
+  let arLoading=false;
+  async function arLoad(force){
+    if(!me||arLoading)return;
+    const covered=arFetchedAt&&haversine(me,arFetchedAt.at)<(arFetchedAt.near||2)*1609.34*0.6&&arFetchedAt.range>=arRangeMi;
+    if(!force&&covered)return;
+    arLoading=true;
+    try{
+      // 1) Saved copy first: instant, and works with no signal
+      const saved=await savedAreaFor(me);
+      if(saved&&(!arFetchedAt||force||!covered)){useArea(saved);arMsg('')}
+      const fresh=saved&&Date.now()-saved.time<3*86400000&&saved.farMi>=arRangeMi;
+      if(!navigator.onLine){if(!saved)arMsg('No signal and this area isn’t saved yet — use “Save this area for offline” next time you have service');return}
+      if(fresh&&!force)return;
+      // 2) Online: download, show, and save for next time
+      if(!saved)arMsg('Finding what’s around you…');
+      const area=await fetchArea(me.lat,me.lng,Math.max(arRangeMi,25),3,t=>{if(!saved)arMsg(t)});
+      useArea(area);arMsg('');saveArea(area);
+    }catch(e){
+      if(!arPois.length&&!arLocal.length){arMsg('Couldn’t load places ('+(e&&e.message||'error')+'). Try again in a minute.');setTimeout(()=>arMsg(''),5000)}
+    }finally{arLoading=false}
     if(arShow.tower)arLoadTowers(false);
-    await localJob;
   }
   async function arLoadTowers(force){
     if(!me)return;
     if(!force&&arTowersAt&&haversine(me,arTowersAt)<2000)return;
+    const key=`towers:${me.lat.toFixed(2)},${me.lng.toFixed(2)}`;
     const q=new URLSearchParams({where:'1=1',geometry:`${me.lng},${me.lat}`,geometryType:'esriGeometryPoint',inSR:'4326',
       distance:'16000',units:'esriSRUnit_Meter',spatialRel:'esriSpatialRelIntersects',outFields:'*',outSR:'4326',returnGeometry:'true',resultRecordCount:'300',f:'json'});
     try{const d=await (await fetch(TOWER_URL+'?'+q)).json();
       arTowers=(d.features||[]).filter(f=>f.geometry).map(f=>{const a=f.attributes||{};
         return {type:'tower',name:pick(a,/licens|owner|entity|company/i)||'Cell tower',sub:'Cell tower',lat:f.geometry.y,lng:f.geometry.x,ele:null,rank:3}});
-      arTowersAt={lat:me.lat,lng:me.lng};arDataVer++;
-    }catch(e){}
+      idb.set(key,arTowers).catch(()=>{});
+    }catch(e){try{const c=await idb.get(key);if(c)arTowers=c}catch(_){}}
+    arTowersAt={lat:me.lat,lng:me.lng};arDataVer++;
   }
   function arMsg(t){const m=$('arMsg');m.textContent=t;m.style.display=t?'block':'none'}
 
@@ -1105,6 +1174,144 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   $('arBtn').onclick=openAR;
   $('arClose').onclick=closeAR;
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&arOn)closeAR()});
+
+  // ---------- Download an area for offline ----------
+  const OFF_CACHE='onpoint-offline-v1';
+  const DL_LAYERS={usgs:{name:'Topo map',path:'USGSTopo',kb:22},usgsimg:{name:'Satellite + names',path:'USGSImageryTopo',kb:48}};
+  function tileList(lat,lng,rMi,zmin,zmax,path){
+    const r=rMi*1609.34,dLat=r/111320,dLng=r/(111320*Math.cos(lat*Math.PI/180)),out=[];
+    const X=(x,z)=>Math.floor((x+180)/360*2**z),
+      Y=(y,z)=>{const t=y*Math.PI/180;return Math.floor((1-Math.log(Math.tan(t)+1/Math.cos(t))/Math.PI)/2*2**z)};
+    for(let z=zmin;z<=zmax;z++){
+      const x0=X(lng-dLng,z),x1=X(lng+dLng,z),y0=Y(lat+dLat,z),y1=Y(lat-dLat,z);
+      for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)
+        out.push(`https://basemap.nationalmap.gov/arcgis/rest/services/${path}/MapServer/tile/${z}/${y}/${x}`);
+    }
+    return out;
+  }
+  const maxZFor=r=>r<=5?16:r<=10?15:14;
+  let dlSel={r:5,layers:{usgs:true,usgsimg:false}},dlCancel=false;
+  function dlPlan(){
+    const c=map.getCenter(),zmax=maxZFor(dlSel.r);let n=0,kb=0;
+    for(const [k,L] of Object.entries(DL_LAYERS))if(dlSel.layers[k]){const t=tileList(c.lat,c.lng,dlSel.r,8,zmax,L.path).length;n+=t;kb+=t*L.kb}
+    return {c,zmax,n,mb:Math.max(1,Math.round(kb/1024))};
+  }
+  async function showDownload(){
+    const list=(await idb.get('downloads').catch(()=>null))||[];
+    const plan=dlPlan();
+    const rOpts=[2,5,10,20].map(r=>`<button class="opt" role="radio" aria-checked="${r===dlSel.r}" data-r="${r}" style="flex:1;justify-content:center"><span class="ot">${r} mi</span></button>`).join('');
+    const lOpts=Object.entries(DL_LAYERS).map(([k,L])=>`<button class="opt sw-t" aria-pressed="${!!dlSel.layers[k]}" data-l="${k}"><span><span class="ot">${L.name}</span></span><span class="mk"></span></button>`).join('');
+    const saved=list.map((d,i)=>`<div class="opt" style="cursor:default"><span><span class="ot">${esc(d.name)}</span><span class="od">${d.r} mi · ${d.layers.map(k=>DL_LAYERS[k].name).join(' + ')} · ${new Date(d.time).toLocaleDateString()}</span></span>
+      <button class="b-danger" data-del="${i}" style="margin-left:auto;border-radius:10px;padding:8px 12px;font-weight:600">Delete</button></div>`).join('');
+    openSheet(`<h2 id="sheetTitle">Download an area</h2>
+      <p class="fine" style="margin-top:4px">Downloads around the <b>center of the map</b> — move the map first to grab somewhere you're going. Includes named places & roads for the camera view.</p>
+      <div class="sec">How far around</div><div id="dlR" style="display:flex;gap:8px">${rOpts}</div>
+      <div class="sec">Maps</div><div id="dlL">${lOpts}</div>
+      <p class="fine" id="dlEst" style="font-size:15px">About ${plan.n.toLocaleString()} map pieces · ~${plan.mb} MB · detail to street level${plan.zmax<16?' (a little less for big areas)':''}</p>
+      <div class="row"><button class="b-ghost" id="dlClose">Close</button><button class="b-flag" id="dlGo">Download</button></div>
+      ${list.length?`<div class="sec">Downloaded</div>${saved}`:''}
+      <p class="fine">Downloaded areas use the <b>USGS Topo</b> or <b>USGS Satellite + names</b> maps (Layers). The app switches to them automatically when you lose signal.</p>`);
+    $('dlR').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;dlSel.r=+b.dataset.r;showDownload()};
+    $('dlL').onclick=e=>{const b=e.target.closest('[data-l]');if(!b)return;dlSel.layers[b.dataset.l]=!dlSel.layers[b.dataset.l];showDownload()};
+    $('dlClose').onclick=closeSheet;
+    $('dlGo').onclick=runDownload;
+    $('sheetBody').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteDownload(+b.dataset.del));
+  }
+  async function runDownload(){
+    const plan=dlPlan(),layers=Object.keys(DL_LAYERS).filter(k=>dlSel.layers[k]);
+    if(!layers.length){toast('Pick at least one map');return}
+    if(!navigator.onLine){toast('You need signal to download');return}
+    if(!('caches' in window)){toast('This browser can’t store maps offline');return}
+    try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+    dlCancel=false;
+    openSheet(`<h2 id="sheetTitle">Downloading…</h2>
+      <div style="height:12px;border-radius:6px;background:#EEF0F1;overflow:hidden;margin:10px 0"><div id="dlBar" style="height:100%;width:0;background:var(--flag);transition:width .2s"></div></div>
+      <p class="fine" id="dlTxt" style="font-size:15px">Starting…</p><p class="fine">Keep the app open and the screen on.</p>
+      <div class="row"><button class="b-ghost" id="dlStop">Cancel</button></div>`);
+    $('dlStop').onclick=()=>{dlCancel=true};
+    const urls=[];layers.forEach(k=>urls.push(...tileList(plan.c.lat,plan.c.lng,dlSel.r,8,plan.zmax,DL_LAYERS[k].path)));
+    const cache=await caches.open(OFF_CACHE);let done=0,fail=0,i=0,corsBroke=false;
+    const upd=()=>{const b=$('dlBar'),t=$('dlTxt');if(b)b.style.width=(done/urls.length*85)+'%';if(t)t.textContent=`Map: ${done.toLocaleString()} of ${urls.length.toLocaleString()}${fail?` (${fail} missed)`:''}`};
+    async function worker(){
+      while(i<urls.length&&!dlCancel){
+        const u=urls[i++];
+        try{
+          if(!(await cache.match(u))){
+            let r;
+            try{r=await fetch(u,{mode:usgsCors?'cors':'no-cors'})}
+            catch(e){if(usgsCors){corsBroke=true;r=await fetch(u,{mode:'no-cors'})}else throw e}
+            if(r.ok||r.type==='opaque')await cache.put(u,r);else fail++;
+          }
+        }catch(e){fail++}
+        done++;if(done%10===0)upd();
+      }
+    }
+    await Promise.all(Array.from({length:6},worker));upd();
+    if(corsBroke){try{localStorage.setItem('onpoint.usgsCors','0')}catch(e){}}
+    if(dlCancel){closeSheet();toast('Download cancelled — what finished is kept');return}
+    const t=$('dlTxt');if(t)t.textContent='Downloading named places & roads…';
+    let area=null;
+    try{area=await fetchArea(plan.c.lat,plan.c.lng,30,Math.min(dlSel.r,3),x=>{const t=$('dlTxt');if(t)t.textContent=x});await saveArea(area);}catch(e){}
+    const b=$('dlBar');if(b)b.style.width='100%';
+    const list=(await idb.get('downloads').catch(()=>null))||[];
+    const name=await nameFor(plan.c,area);
+    list.unshift({name,lat:plan.c.lat,lng:plan.c.lng,r:dlSel.r,zmax:plan.zmax,layers,time:Date.now()});
+    await idb.set('downloads',list).catch(()=>{});
+    openSheet(`<h2 id="sheetTitle">Area downloaded ✓</h2>
+      <p class="fine" style="font-size:15px">${esc(name)} · ${dlSel.r} mi around · ${(urls.length-fail).toLocaleString()} map pieces${area?` · ${area.local.length} places · ${area.roads.length} roads`:''}</p>
+      ${fail?`<p class="fine">${fail} pieces didn't download (server busy). Run it again later to fill the gaps — finished pieces are skipped.</p>`:''}
+      ${area?'':'<p class="fine">Named places didn’t download (server busy) — the map part is saved. Try again later for the camera labels.</p>'}
+      ${corsBroke?'<p class="fine">Close and reopen the app once so the downloaded map shows up.</p>':''}
+      <div class="row"><button class="b-primary" id="dlShow">Use downloaded map</button></div>`);
+    $('dlShow').onclick=()=>{layerState.base=layers[0];applyLayers();closeSheet()};
+  }
+  async function nameFor(c,area){
+    if(area&&area.pois&&area.pois.length){
+      const p=area.pois.filter(p=>p.type==='place').map(p=>({p,d:haversine(c,p)})).sort((a,b)=>a.d-b.d)[0];
+      if(p)return (p.d<3000?'':'Near ')+p.p.name;
+    }
+    return `${c.lat.toFixed(3)}, ${c.lng.toFixed(3)}`;
+  }
+  async function deleteDownload(i){
+    const list=(await idb.get('downloads').catch(()=>null))||[];const d=list[i];if(!d)return;
+    if(!confirm(`Delete the download for ${d.name}?`))return;
+    const cache=await caches.open(OFF_CACHE);
+    // keep pieces another download still uses
+    const keep=new Set();list.forEach((o,j)=>{if(j!==i)o.layers.forEach(k=>tileList(o.lat,o.lng,o.r,8,o.zmax,DL_LAYERS[k].path).forEach(u=>keep.add(u)))});
+    for(const k of d.layers)for(const u of tileList(d.lat,d.lng,d.r,8,d.zmax,DL_LAYERS[k].path))if(!keep.has(u))await cache.delete(u);
+    list.splice(i,1);await idb.set('downloads',list).catch(()=>{});
+    toast('Download deleted');showDownload();
+  }
+  // Lost signal: switch to a downloaded map if you're looking at one that isn't saved
+  window.addEventListener('offline',async()=>{
+    const list=(await idb.get('downloads').catch(()=>null))||[];
+    if(list.length&&!DL_LAYERS[layerState.base]){layerState.base=list[0].layers[0];applyLayers();toast('No signal — switched to your downloaded map')}
+  });
+
+  async function saveAreaNow(){
+    if(!me){toast('Waiting for your location…');return}
+    if(!navigator.onLine){toast('You need signal to download an area');return}
+    openSheet(`<h2 id="sheetTitle">Saving this area</h2><p class="fine" id="savePr" style="font-size:15px">Starting…</p>
+      <p class="fine">Keep the app open. This can take up to a minute.</p>`);
+    const pr=t=>{const el=$('savePr');if(el)el.textContent=t};
+    try{
+      const area=await fetchArea(me.lat,me.lng,30,3,pr);
+      await saveArea(area);useArea(area);
+      pr('Saving cell towers…');await arLoadTowers(true);
+      openSheet(`<h2 id="sheetTitle">Area saved ✓</h2>
+        <p class="fine" style="font-size:15px">${area.pois.length} towns & peaks · ${area.local.length} nearby places · ${area.roads.length} roads</p>
+        <p class="fine">The camera view will use this with no signal. For the map itself, pan and zoom around here now — every map tile you see gets kept for offline too.</p>
+        <div class="row"><button class="b-primary" id="svDone">Done</button></div>`);
+      $('svDone').onclick=closeSheet;
+    }catch(e){pr('Download failed ('+(e&&e.message||'error')+'). The map servers may be busy — try again in a minute.')}
+  }
+  // Offline app: a small service worker (sw.js, uploaded next to index.html) keeps the app
+  // and every map tile you've viewed on the phone.
+  if('serviceWorker' in navigator&&location.protocol==='https:'){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+  window.addEventListener('offline',()=>toast('No signal — using saved map & places'));
+  window.addEventListener('online',()=>toast('Back online'));
 
   // ---------- actions ----------
   map.on('click',e=>{ if($('sheet').classList.contains('show')){closeSheet();return} $('hint').style.opacity=0; newPinAt(e.latlng.lat,e.latlng.lng); });
