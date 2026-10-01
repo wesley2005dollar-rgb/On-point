@@ -141,6 +141,18 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .you.moving .arrow{display:block}.you.moving .you-dot{display:none}
 .you .cone{position:absolute;left:0;top:0;width:110px;height:110px;display:none;transition:transform .2s ease-out}
 .you .cone.on{display:block}
+.navcard{position:absolute;left:0;right:0;bottom:0;z-index:940;background:var(--paper);border-radius:18px 18px 0 0;padding:12px 16px calc(var(--safe-b) + 14px);box-shadow:0 -4px 20px rgba(0,0,0,.25);display:none}
+.navcard.show{display:block}
+.navcard h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:24px;margin:0;line-height:1.15}
+.navcard .nsub{font-size:14px;color:var(--muted);margin:2px 0 8px}
+.nstats{display:flex;gap:10px;margin:6px 0}
+.nstat{flex:1;background:#EEF0F1;border-radius:12px;padding:8px 10px}
+.nstat small{display:block;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.nstat b{font-size:20px;font-variant-numeric:tabular-nums}
+.nav-tip{background:var(--slate)!important;color:#fff!important;border:0!important;border-radius:8px!important;font:600 13px/1.2 "Barlow",system-ui,sans-serif!important;padding:4px 8px!important;box-shadow:0 1px 5px rgba(0,0,0,.35)!important;white-space:nowrap}
+.nav-tip::before{display:none}
+.leaflet-tooltip{position:absolute;pointer-events:none}
+.nav-target{width:30px;height:30px;border-radius:50%;border:4px solid #E0287D;background:rgba(224,40,125,.2);box-shadow:0 0 0 3px #fff}
 .dlpanel{position:absolute;left:0;right:0;bottom:0;z-index:950;background:var(--paper);border-radius:18px 18px 0 0;padding:12px 14px calc(var(--safe-b) + 14px);box-shadow:0 -4px 20px rgba(0,0,0,.25);display:none}
 .dlpanel.show{display:block}
 .dlpanel h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:22px;margin:0 0 4px}
@@ -221,6 +233,16 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <button class="btn-flag" id="pinHereBtn">Pin where I am</button>
 </nav>
 
+<div class="navcard" id="navcard" role="dialog" aria-label="Route">
+  <h3 id="navName"></h3><div class="nsub" id="navSub"></div>
+  <div class="nstats">
+    <div class="nstat"><small>Straight line</small><b id="navStraight">—</b></div>
+    <div class="nstat"><small id="navRouteLbl">By road</small><b id="navRoute">—</b></div>
+  </div>
+  <div class="seg" id="navMode"><button data-m="car" aria-pressed="true">🚗 Drive</button><button data-m="foot" aria-pressed="false">🚶 Walk</button><button data-m="bike" aria-pressed="false">🚲 Bike</button></div>
+  <div class="row" style="margin-top:6px"><button class="b-ghost" id="navPin">⚑ Pin it</button><button class="b-ghost" id="navG">Google Maps</button></div>
+  <div class="row" style="margin-top:8px"><button class="b-ghost" id="navCam">📷 Back to camera</button><button class="b-primary" id="navEnd">Done</button></div>
+</div>
 <div class="dlpanel" id="dlpanel" role="dialog" aria-label="Choose area to download">
   <h3>Choose what to download</h3>
   <div class="seg" id="dlpMode"><button data-m="box" aria-pressed="true">▭ Box</button><button data-m="trail" aria-pressed="false">〰 Trail / route</button></div>
@@ -420,7 +442,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 27 (fast place search)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 28 (tap to route)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -501,7 +523,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     if(first) map.setView([lat,lng],17);
     else if(follow) map.panTo([lat,lng],{animate:true});
     $('locBtn').classList.toggle('on',follow);
-    updateReadout();drawDirection();autoCalSample();
+    updateReadout();drawDirection();autoCalSample();if(nav)navUpdate();
     if(headingOn){const t=currentHeading();if(t!=null&&(lastSet==null||Math.abs(((t-lastSet+540)%360)-180)>=2)){lastSet=t;map.setBearing(-t)}}
   }
   function onErr(e){
@@ -848,9 +870,9 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       ${waterChips(p)?`<div class="chips">${waterChips(p)}</div>`:''}
       <div class="note-body ${p.note?'':'note-empty'}">${p.note?esc(p.note):'No notes yet.'}</div>
       <div class="meta">Pinned ${fmtDate(p.created)}${p.updated&&p.updated-p.created>60000?' · edited '+fmtDate(p.updated):''}</div>
-      <div class="row"><button class="b-primary" id="navB">Directions</button><button class="b-ghost" id="editB">Edit</button></div>
+      <div class="row"><button class="b-primary" id="navB">Route here</button><button class="b-ghost" id="editB">Edit</button></div>
       <div class="row" style="margin-top:10px"><button class="b-ghost" id="copyB">Copy coordinates</button><button class="b-danger" id="delB">Delete</button></div>`);
-    $('navB').onclick=()=>window.open(`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`,'_blank');
+    $('navB').onclick=()=>{closeSheet();startNav({name:p.title,sub:'Your pin'+(p.note?' · '+p.note.split('\n')[0].slice(0,60):''),icon:'⚑',lat:p.lat,lng:p.lng})};
     $('editB').onclick=()=>editor(p,false);
     $('copyB').onclick=async()=>{try{await navigator.clipboard.writeText(`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`);toast('Coordinates copied')}catch(e){toast(`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`)}};
     $('delB').onclick=()=>{
@@ -1192,7 +1214,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v27 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v28 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1265,7 +1287,78 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     return (c.length?c.join(' · '):(arLoading?'Finding places around you…'+secs:'No places loaded — tap ↻'))+(arBusy&&c.length?' · loading more…':'');
   }
   let arItems=[];
-  $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t||!t._item)return;arDetails(t._item)};
+  $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t||!t._item)return;const p=t._item.p;closeAR();startNav({name:p.name,sub:p.sub,icon:p.icon||AR_TYPES[p.type].icon,lat:p.lat,lng:p.lng,ele:p.ele})};
+  // ---------- Go to: line + distance + route ----------
+  // Tapping something in the camera view jumps to the map with a straight line from you to it,
+  // the distance, and a route along roads/trails (free OpenStreetMap routing). Updates as you move.
+  const navLayer=L.layerGroup().addTo(map);
+  let nav=null,navMode='car',navLine=null,navTip=null,navRouteLine=null,navRouteFrom=null,navReq=0,navLastRoute=0;
+  try{const v=localStorage.getItem('onpoint.navMode');if(v)navMode=v}catch(e){}
+  const ROUTERS={car:'https://routing.openstreetmap.de/routed-car/route/v1/driving/',
+    foot:'https://routing.openstreetmap.de/routed-foot/route/v1/foot/',bike:'https://routing.openstreetmap.de/routed-bike/route/v1/bike/'};
+  function fmtDur(sec){const m=Math.round(sec/60);return m<60?m+' min':Math.floor(m/60)+' h '+(m%60)+' min'}
+  function startNav(t){
+    nav=t;navRouteFrom=null;
+    navLayer.clearLayers();navRouteLine=null;
+    L.marker([t.lat,t.lng],{icon:L.divIcon({className:'',html:'<div class="nav-target"></div>',iconSize:[30,30],iconAnchor:[15,15]}),interactive:false}).addTo(navLayer);
+    navLine=L.polyline([[t.lat,t.lng],[t.lat,t.lng]],{color:'#24313B',weight:3,dashArray:'6 8',interactive:false}).addTo(navLayer);
+    navTip=L.tooltip({permanent:true,direction:'center',className:'nav-tip',interactive:false});
+    $('navName').textContent=`${t.icon||'📍'} ${t.name}`;
+    $('navSub').textContent=[t.sub,t.ele!=null?Math.round(t.ele*3.28084).toLocaleString()+' ft high':''].filter(Boolean).join(' · ');
+    $('navMode').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===navMode));
+    $('navcard').classList.add('show');document.querySelector('.dock').style.display='none';
+    follow=false;$('locBtn').classList.remove('on');
+    navUpdate(true);
+    if(me)map.fitBounds(L.latLngBounds([[me.lat,me.lng],[t.lat,t.lng]]),{paddingTopLeft:[40,110],paddingBottomRight:[40,Math.round(innerHeight*.42)],maxZoom:17});
+    else map.setView([t.lat,t.lng],15);
+    navRoute();
+  }
+  function navUpdate(){
+    if(!nav)return;
+    if(!me){$('navStraight').textContent='Waiting for GPS…';return}
+    const a=[me.lat,me.lng],b=[nav.lat,nav.lng],d=haversine(me,nav),brg=bearingTo(me,nav);
+    navLine.setLatLngs([a,b]);
+    $('navStraight').textContent=`${fmtDist(d)} ${CARD[Math.round(brg/22.5)%16]}`;
+    navTip.setContent(fmtDist(d));
+    navTip.setLatLng([(a[0]+b[0])/2,(a[1]+b[1])/2]);if(!map.hasLayer(navTip))navTip.addTo(map);
+    // re-route if you've wandered off the route
+    if(navRouteFrom&&haversine(me,navRouteFrom)>250&&Date.now()-navLastRoute>20000)navRoute();
+    if(d<25&&!nav.arrived){nav.arrived=true;toast(`You’ve reached ${nav.name}`)}
+  }
+  async function navRoute(){
+    if(!nav||!me)return;
+    if(!navigator.onLine){$('navRoute').textContent='No signal';$('navRouteLbl').textContent='Route';return}
+    const seq=++navReq;navLastRoute=Date.now();navRouteFrom={lat:me.lat,lng:me.lng};
+    $('navRoute').textContent='Finding…';$('navRouteLbl').textContent=navMode==='car'?'By road':navMode==='foot'?'Walking':'Biking';
+    try{
+      const url=`${ROUTERS[navMode]}${me.lng.toFixed(6)},${me.lat.toFixed(6)};${nav.lng.toFixed(6)},${nav.lat.toFixed(6)}?overview=full&geometries=geojson`;
+      const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),20000);
+      const d=await (await fetch(url,{signal:ctl.signal})).json();clearTimeout(tm);
+      if(seq!==navReq||!nav)return;
+      const r=d.routes&&d.routes[0];
+      if(!r){$('navRoute').textContent='No route';return}
+      if(navRouteLine)navLayer.removeLayer(navRouteLine);
+      const pts=r.geometry.coordinates.map(c=>[c[1],c[0]]);
+      navRouteLine=L.layerGroup([
+        L.polyline(pts,{color:'#fff',weight:9,opacity:.9,interactive:false}),
+        L.polyline(pts,{color:'#1E7FD8',weight:5,opacity:.95,interactive:false})]).addTo(navLayer);
+      // the route may reach the nearest road, not the exact spot — show the last stretch on foot
+      const end=pts[pts.length-1],gap=haversine({lat:end[0],lng:end[1]},nav);
+      if(gap>30)L.polyline([end,[nav.lat,nav.lng]],{color:'#1E7FD8',weight:3,dashArray:'2 7',interactive:false}).addTo(navRouteLine);
+      $('navRoute').textContent=`${fmtDist(r.distance)} · ${fmtDur(r.duration)}`;
+    }catch(e){if(seq===navReq)$('navRoute').textContent='Couldn’t route'}
+  }
+  function endNav(){
+    nav=null;navReq++;navLayer.clearLayers();if(navTip)map.removeLayer(navTip);
+    $('navcard').classList.remove('show');document.querySelector('.dock').style.display='';
+  }
+  $('navMode').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;navMode=b.dataset.m;try{localStorage.setItem('onpoint.navMode',navMode)}catch(_){}
+    $('navMode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));navRoute()};
+  $('navEnd').onclick=endNav;
+  $('navCam').onclick=()=>{endNav();openAR()};
+  $('navPin').onclick=()=>{if(!nav)return;const t=nav;newPinAt(t.lat,t.lng);setTimeout(()=>{const f=$('fTitle');if(f)f.value=t.name},30)};
+  $('navG').onclick=()=>{if(nav)window.open(`https://www.google.com/maps/dir/?api=1&destination=${nav.lat},${nav.lng}${navMode==='foot'?'&travelmode=walking':navMode==='bike'?'&travelmode=bicycling':''}`,'_blank')};
+
   function arDetails(it){
     const p=it.p,b=bearingTo(me,p);
     closeAR();
