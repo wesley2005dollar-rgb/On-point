@@ -197,6 +197,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 </head>
 <body>
 <div id="map" role="application" aria-label="Map"></div>
+<svg id="navSvg" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:450;overflow:visible"></svg>
 
 <header class="top">
   <div class="brand">
@@ -442,7 +443,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 30 (lines stay put when rotating)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 31 (route lines locked + pin routes)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -633,20 +634,6 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   });
   function updateNeedle(){$('needle').style.transform=`rotate(${spinTo('needle',screenNorth())}deg)`;drawDirection();}
   map.on('rotate',updateNeedle);
-  // Lines/shapes (route, straight line, download boxes) are drawn on a layer that Leaflet only
-  // repositions after a pan or zoom — not after a twist — so they slid out of place when the
-  // map rotated. Re-sync them (and the distance label) every frame while rotating.
-  let rotFix=0;
-  function resyncVectors(){
-    rotFix=0;
-    const seen=new Set();
-    map.eachLayer(l=>{if(l._renderer&&!seen.has(l._renderer)){seen.add(l._renderer)}
-      if(l instanceof L.Tooltip&&l.update)try{l.update()}catch(e){}});
-    seen.forEach(r=>{try{r._update();r._updatePaths&&r._updatePaths()}catch(e){}});
-    if(typeof navTip!=='undefined'&&navTip&&map.hasLayer(navTip))try{navTip.update()}catch(e){}
-  }
-  map.on('rotate',()=>{if(!rotFix)rotFix=requestAnimationFrame(resyncVectors)});
-  map.on('rotateend',resyncVectors);
   // Standing or walking: compass (the way the phone points). Driving: the compass is thrown off by
   // the car's metal and the phone is sitting in a mount, so switch to GPS direction of travel.
   // Switch on above ~8 mph, back to compass below ~4 mph so it doesn't flicker at stoplights.
@@ -845,7 +832,8 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <textarea id="fNote" placeholder="Anything you want to remember here">${esc(draft.note)}</textarea>
       <label class="f">Flag color</label>
       <div class="swatches" id="sws">${sw}</div>
-      <div class="row"><button class="b-ghost" id="cancelB">Cancel</button><button class="b-flag" id="saveB">Save pin</button></div>`);
+      <div class="row"><button class="b-ghost" id="cancelB">Cancel</button><button class="b-flag" id="saveB">Save pin</button></div>
+      <div class="row" style="margin-top:10px"><button class="b-primary" id="saveRouteB">Save & route there</button></div>`);
     $('sws').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;draft.color=b.dataset.c;
       $('sws').querySelectorAll('.sw').forEach(x=>x.setAttribute('aria-pressed',x===b));
       if(draftMarker)draftMarker.setIcon(flagIcon(draft.color));};
@@ -861,8 +849,11 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       save();drawPin(draft);setCount();
       const saved=draft; if(draftMarker){map.removeLayer(draftMarker);draftMarker=null} draft=null;
       closeSheet();toast(isNew?'Pin saved':'Changes saved');
+      if(routeAfter){routeAfter=false;startNav({name:saved.title,sub:'Your pin',icon:'⚑',lat:saved.lat,lng:saved.lng});return}
       showPin(saved.id);
     };
+    let routeAfter=false;
+    $('saveRouteB').onclick=()=>{routeAfter=true;$('saveB').onclick()};
     if(isNew) setTimeout(()=>$('fTitle').focus(),260);
   }
 
@@ -1228,7 +1219,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v30 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v31 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1320,39 +1311,63 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   // ---------- Go to: line + distance + route ----------
   // Tapping something in the camera view jumps to the map with a straight line from you to it,
   // the distance, and a route along roads/trails (free OpenStreetMap routing). Updates as you move.
-  const navLayer=L.layerGroup().addTo(map);
-  let nav=null,navMode='car',navLine=null,navTip=null,navRouteLine=null,navRouteFrom=null,navReq=0,navLastRoute=0;
+  // Route lines are drawn on our own screen layer, recomputed from map positions on every pan,
+  // zoom and twist — so they can't slide away from the roads when the map rotates.
+  let nav=null,navMode='car',navRoutePts=null,navGap=null,navRouteFrom=null,navReq=0,navLastRoute=0,navRaf=0;
   try{const v=localStorage.getItem('onpoint.navMode');if(v)navMode=v}catch(e){}
   const ROUTERS={car:'https://routing.openstreetmap.de/routed-car/route/v1/driving/',
     foot:'https://routing.openstreetmap.de/routed-foot/route/v1/foot/',bike:'https://routing.openstreetmap.de/routed-bike/route/v1/bike/'};
   function fmtDur(sec){const m=Math.round(sec/60);return m<60?m+' min':Math.floor(m/60)+' h '+(m%60)+' min'}
+  const SVGNS='http://www.w3.org/2000/svg';
+  function navDraw(){
+    navRaf=0;const svg=$('navSvg');
+    if(!nav){svg.innerHTML='';return}
+    const P=ll=>map.latLngToContainerPoint(ll);
+    const pathOf=pts=>{let d='',last=null;for(const ll of pts){const p=P(ll);
+        if(last&&Math.abs(p.x-last.x)+Math.abs(p.y-last.y)<1.5)continue;d+=(d?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);last=p}return d};
+    let h='';
+    if(navRoutePts&&navRoutePts.length>1){
+      const d=pathOf(navRoutePts);
+      h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
+      h+=`<path d="${d}" fill="none" stroke="#1E7FD8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
+      if(navGap)h+=`<path d="${pathOf(navGap)}" fill="none" stroke="#1E7FD8" stroke-width="3" stroke-dasharray="2 7" stroke-linecap="round"/>`;
+    }
+    const t=P([nav.lat,nav.lng]);
+    if(me){
+      const m=P([me.lat,me.lng]),dx=t.x-m.x,dy=t.y-m.y,len=Math.hypot(dx,dy)||1;
+      const sx=m.x+dx/len*Math.min(16,len/2),sy=m.y+dy/len*Math.min(16,len/2);   // start just outside your arrow
+      h+=`<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${t.x.toFixed(1)}" y2="${t.y.toFixed(1)}" stroke="#24313B" stroke-width="3" stroke-dasharray="6 8" stroke-linecap="round"/>`;
+      const label=fmtDist(haversine(me,nav)),mx=(m.x+t.x)/2,my=(m.y+t.y)/2,w=label.length*7.6+16;
+      if(len>70)h+=`<g transform="translate(${mx.toFixed(1)},${my.toFixed(1)})"><rect x="${(-w/2).toFixed(1)}" y="-12" width="${w.toFixed(1)}" height="24" rx="8" fill="#24313B"/>`+
+        `<text x="0" y="5" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="600" font-size="13" fill="#fff">${label}</text></g>`;
+    }
+    h+=`<circle cx="${t.x.toFixed(1)}" cy="${t.y.toFixed(1)}" r="16" fill="#fff" opacity=".9"/><circle cx="${t.x.toFixed(1)}" cy="${t.y.toFixed(1)}" r="12" fill="rgba(224,40,125,.25)" stroke="#E0287D" stroke-width="4"/>`;
+    svg.innerHTML=h;
+  }
+  function navRedraw(){if(nav&&!navRaf)navRaf=requestAnimationFrame(navDraw)}
+  map.on('move zoom rotate viewreset resize moveend zoomend rotateend',navRedraw);
+  map.on('zoomanim',()=>{if(nav)$('navSvg').style.opacity=0});
+  map.on('zoomend',()=>{$('navSvg').style.opacity=1});
   function startNav(t){
-    nav=t;navRouteFrom=null;
-    navLayer.clearLayers();navRouteLine=null;
-    L.marker([t.lat,t.lng],{icon:L.divIcon({className:'',html:'<div class="nav-target"></div>',iconSize:[30,30],iconAnchor:[15,15]}),interactive:false}).addTo(navLayer);
-    navLine=L.polyline([[t.lat,t.lng],[t.lat,t.lng]],{color:'#24313B',weight:3,dashArray:'6 8',interactive:false}).addTo(navLayer);
-    navTip=L.tooltip({permanent:true,direction:'center',className:'nav-tip',interactive:false});
+    nav=t;navRouteFrom=null;navRoutePts=null;navGap=null;
     $('navName').textContent=`${t.icon||'📍'} ${t.name}`;
     $('navSub').textContent=[t.sub,t.ele!=null?Math.round(t.ele*3.28084).toLocaleString()+' ft high':''].filter(Boolean).join(' · ');
     $('navMode').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===navMode));
     $('navcard').classList.add('show');document.querySelector('.dock').style.display='none';
     follow=false;$('locBtn').classList.remove('on');
-    navUpdate(true);
+    navUpdate();
     if(me)map.fitBounds(L.latLngBounds([[me.lat,me.lng],[t.lat,t.lng]]),{paddingTopLeft:[40,110],paddingBottomRight:[40,Math.round(innerHeight*.42)],maxZoom:17});
     else map.setView([t.lat,t.lng],15);
-    navRoute();
+    navRoute();navRedraw();
   }
   function navUpdate(){
     if(!nav)return;
     if(!me){$('navStraight').textContent='Waiting for GPS…';return}
-    const a=[me.lat,me.lng],b=[nav.lat,nav.lng],d=haversine(me,nav),brg=bearingTo(me,nav);
-    navLine.setLatLngs([a,b]);
+    const d=haversine(me,nav),brg=bearingTo(me,nav);
     $('navStraight').textContent=`${fmtDist(d)} ${CARD[Math.round(brg/22.5)%16]}`;
-    navTip.setContent(fmtDist(d));
-    navTip.setLatLng([(a[0]+b[0])/2,(a[1]+b[1])/2]);if(!map.hasLayer(navTip))navTip.addTo(map);
-    // re-route if you've wandered off the route
     if(navRouteFrom&&haversine(me,navRouteFrom)>250&&Date.now()-navLastRoute>20000)navRoute();
     if(d<25&&!nav.arrived){nav.arrived=true;toast(`You’ve reached ${nav.name}`)}
+    navRedraw();
   }
   async function navRoute(){
     if(!nav||!me)return;
@@ -1365,20 +1380,16 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       const d=await (await fetch(url,{signal:ctl.signal})).json();clearTimeout(tm);
       if(seq!==navReq||!nav)return;
       const r=d.routes&&d.routes[0];
-      if(!r){$('navRoute').textContent='No route';return}
-      if(navRouteLine)navLayer.removeLayer(navRouteLine);
-      const pts=r.geometry.coordinates.map(c=>[c[1],c[0]]);
-      navRouteLine=L.layerGroup([
-        L.polyline(pts,{color:'#fff',weight:9,opacity:.9,interactive:false}),
-        L.polyline(pts,{color:'#1E7FD8',weight:5,opacity:.95,interactive:false})]).addTo(navLayer);
-      // the route may reach the nearest road, not the exact spot — show the last stretch on foot
-      const end=pts[pts.length-1],gap=haversine({lat:end[0],lng:end[1]},nav);
-      if(gap>30)L.polyline([end,[nav.lat,nav.lng]],{color:'#1E7FD8',weight:3,dashArray:'2 7',interactive:false}).addTo(navRouteLine);
+      if(!r){$('navRoute').textContent='No route';navRoutePts=null;navRedraw();return}
+      navRoutePts=r.geometry.coordinates.map(c=>[c[1],c[0]]);
+      const end=navRoutePts[navRoutePts.length-1];
+      navGap=haversine({lat:end[0],lng:end[1]},nav)>30?[end,[nav.lat,nav.lng]]:null;
       $('navRoute').textContent=`${fmtDist(r.distance)} · ${fmtDur(r.duration)}`;
+      navRedraw();
     }catch(e){if(seq===navReq)$('navRoute').textContent='Couldn’t route'}
   }
   function endNav(){
-    nav=null;navReq++;navLayer.clearLayers();if(navTip)map.removeLayer(navTip);
+    nav=null;navReq++;navRoutePts=null;navGap=null;$('navSvg').innerHTML='';
     $('navcard').classList.remove('show');document.querySelector('.dock').style.display='';
   }
   $('navMode').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;navMode=b.dataset.m;try{localStorage.setItem('onpoint.navMode',navMode)}catch(_){}
