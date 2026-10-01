@@ -442,7 +442,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 29 (labels ready ahead)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 30 (lines stay put when rotating)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -633,6 +633,20 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   });
   function updateNeedle(){$('needle').style.transform=`rotate(${spinTo('needle',screenNorth())}deg)`;drawDirection();}
   map.on('rotate',updateNeedle);
+  // Lines/shapes (route, straight line, download boxes) are drawn on a layer that Leaflet only
+  // repositions after a pan or zoom — not after a twist — so they slid out of place when the
+  // map rotated. Re-sync them (and the distance label) every frame while rotating.
+  let rotFix=0;
+  function resyncVectors(){
+    rotFix=0;
+    const seen=new Set();
+    map.eachLayer(l=>{if(l._renderer&&!seen.has(l._renderer)){seen.add(l._renderer)}
+      if(l instanceof L.Tooltip&&l.update)try{l.update()}catch(e){}});
+    seen.forEach(r=>{try{r._update();r._updatePaths&&r._updatePaths()}catch(e){}});
+    if(typeof navTip!=='undefined'&&navTip&&map.hasLayer(navTip))try{navTip.update()}catch(e){}
+  }
+  map.on('rotate',()=>{if(!rotFix)rotFix=requestAnimationFrame(resyncVectors)});
+  map.on('rotateend',resyncVectors);
   // Standing or walking: compass (the way the phone points). Driving: the compass is thrown off by
   // the car's metal and the phone is sitting in a mount, so switch to GPS direction of travel.
   // Switch on above ~8 mph, back to compass below ~4 mph so it doesn't flicker at stoplights.
@@ -1214,7 +1228,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v29 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v30 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
