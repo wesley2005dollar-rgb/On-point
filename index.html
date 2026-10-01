@@ -442,7 +442,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 28 (tap to route)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 29 (labels ready ahead)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -523,7 +523,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     if(first) map.setView([lat,lng],17);
     else if(follow) map.panTo([lat,lng],{animate:true});
     $('locBtn').classList.toggle('on',follow);
-    updateReadout();drawDirection();autoCalSample();if(nav)navUpdate();
+    updateReadout();drawDirection();autoCalSample();if(nav)navUpdate();bgPrefetch();
     if(headingOn){const t=currentHeading();if(t!=null&&(lastSet==null||Math.abs(((t-lastSet+540)%360)-180)>=2)){lastSet=t;map.setBearing(-t)}}
   }
   function onErr(e){
@@ -1214,7 +1214,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v28 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v29 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1288,6 +1288,21 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   let arItems=[];
   $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t||!t._item)return;const p=t._item.p;closeAR();startNav({name:p.name,sub:p.sub,icon:p.icon||AR_TYPES[p.type].icon,lat:p.lat,lng:p.lng,ele:p.ele})};
+  // ---------- Background prefetch ----------
+  // Quietly keeps the camera labels for where you are loaded (and saved on the phone),
+  // so the camera view is ready the moment you open it. Re-checks as you move.
+  let bgAt=0,bgFirst=0;
+  function bgPrefetch(){
+    if(!me||!navigator.onLine||arLoading||arOn)return;
+    const now=Date.now();
+    if(!bgFirst){bgFirst=now;return}                 // let the map settle first
+    if(now-bgFirst<5000)return;
+    const fast=gpsSpeed>15;                          // highway speed: check less often
+    if(now-bgAt<(fast?5*60000:60000))return;
+    bgAt=now;arLoad(false);
+  }
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){bgAt=0}});
+
   // ---------- Go to: line + distance + route ----------
   // Tapping something in the camera view jumps to the map with a straight line from you to it,
   // the distance, and a route along roads/trails (free OpenStreetMap routing). Updates as you move.
