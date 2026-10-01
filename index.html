@@ -420,7 +420,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 26b (camera diagnostics)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 27 (fast place search)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -1021,25 +1021,31 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     }
     return {local,roads:[...roads.values()]};
   }
+  // Fast queries: search a map box (spatial index) instead of "within X meters of" with tag filters,
+  // which made the servers scan the whole planet and time out.
+  function bboxOf(lat,lng,m){const dLat=m/111320,dLng=m/(111320*Math.cos(lat*Math.PI/180));
+    return [lat-dLat,lng-dLng,lat+dLat,lng+dLng].map(v=>v.toFixed(5)).join(',')}
+  const nearQ=(lat,lng,N,t)=>`[out:json][timeout:${t||25}][bbox:${bboxOf(lat,lng,N)}];
+(node["name"][!"highway"][!"place"][!"natural"];
+ way["name"][!"highway"][!"place"][!"boundary"];
+ nwr["power"="substation"];
+ nwr["amenity"="place_of_worship"];
+);out center 1500;
+way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
+  const farQ=(lat,lng,R,R2,t)=>{const b1=bboxOf(lat,lng,R),b2=bboxOf(lat,lng,R2);return `[out:json][timeout:${t||25}];
+(node["natural"~"^(peak|volcano|hill)$"]["name"](${b1});
+ node["place"~"^(city|town)$"]["name"](${b1});
+ node["place"~"^(village|hamlet)$"]["name"](${b2});
+ node["tourism"="viewpoint"]["name"](${b2});
+ node["waterway"="waterfall"]["name"](${b2});
+);out body 800;`};
   // Download everything for an area. Two queries, one after the other (servers limit parallel requests).
   async function fetchArea(lat,lng,farMi,nearMi,progress){
     const c=`${lat},${lng}`,R=Math.round(farMi*1609.34),R2=Math.min(R,20000),N=Math.round(nearMi*1609.34);
     progress&&progress('Downloading towns & peaks…');
-    const far=await overpass(`[out:json][timeout:60];(
-      node["natural"~"^(peak|volcano|hill)$"]["name"](around:${R},${c});
-      node["place"~"^(city|town)$"]["name"](around:${R},${c});
-      node["place"~"^(village|hamlet)$"]["name"](around:${R2},${c});
-      node["tourism"="viewpoint"]["name"](around:${R2},${c});
-      node["waterway"="waterfall"]["name"](around:${R2},${c});
-    );out body 800;`);
+    const far=await overpass(farQ(lat,lng,R,R2,60),70000);
     progress&&progress('Downloading nearby places & roads…');
-    const near=await overpass(`[out:json][timeout:90];(
-      node["name"][!"highway"][!"place"][!"natural"](around:${N},${c});
-      way["name"][!"highway"][!"place"][!"boundary"](around:${N},${c});
-      nwr["power"="substation"](around:${N},${c});
-      nwr["amenity"="place_of_worship"](around:${N},${c});
-    );out center 1500;
-    (way["highway"]["name"](around:${N},${c});way["highway"]["ref"](around:${N},${c}););out geom 900;`);
+    const near=await overpass(nearQ(lat,lng,N,90),100000);
     const {local,roads}=parseLocal(near);
     return {lat,lng,farMi,nearMi,time:Date.now(),pois:parsePois(far),local,roads};
   }
@@ -1071,20 +1077,6 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   //   1) what's right around you (1 mi)  2) towns & peaks  3) the rest out to 3 mi
   // Each step shows its labels as soon as it arrives; a slow or busy server can't stall the rest.
   let arLoading=false,arLoadStart=0;
-  const nearQ=(c,N)=>`[out:json][timeout:20];(
-      node["name"][!"highway"][!"place"][!"natural"](around:${N},${c});
-      way["name"][!"highway"][!"place"][!"boundary"](around:${N},${c});
-      nwr["power"="substation"](around:${N},${c});
-      nwr["amenity"="place_of_worship"](around:${N},${c});
-    );out center 800;
-    (way["highway"]["name"](around:${N},${c});way["highway"]["ref"](around:${N},${c}););out geom 500;`;
-  const farQ=(c,R,R2)=>`[out:json][timeout:20];(
-      node["natural"~"^(peak|volcano|hill)$"]["name"](around:${R},${c});
-      node["place"~"^(city|town)$"]["name"](around:${R},${c});
-      node["place"~"^(village|hamlet)$"]["name"](around:${R2},${c});
-      node["tourism"="viewpoint"]["name"](around:${R2},${c});
-      node["waterway"="waterfall"]["name"](around:${R2},${c});
-    );out body 800;`;
   function mergeLocal(res){
     const seen=new Set(arLocal.map(x=>x.name+'|'+x.lat.toFixed(4)+'|'+x.lng.toFixed(4)));
     res.local.forEach(x=>{const k=x.name+'|'+x.lat.toFixed(4)+'|'+x.lng.toFixed(4);if(!seen.has(k)){seen.add(k);arLocal.push(x)}});
@@ -1111,15 +1103,15 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       let okSteps=0,lastErr=null;
       // Step 1: right around you
       arBusy='Finding what’s right around you…';
-      try{mergeLocal(parseLocal(await overpass(nearQ(c,1609),25000)));okSteps++}catch(e){lastErr=e}
+      try{mergeLocal(parseLocal(await overpass(nearQ(at.lat,at.lng,1609,20),25000)));okSteps++}catch(e){lastErr=e}
       // Step 2: towns & peaks
       arBusy='Finding towns & peaks…';
-      try{const d=await overpass(farQ(c,Math.round(far*1609.34),Math.min(Math.round(far*1609.34),20000)),25000);
+      try{const d=await overpass(farQ(at.lat,at.lng,Math.round(far*1609.34),Math.min(Math.round(far*1609.34),20000),20),25000);
         arPois=parsePois(d);arDataVer++;okSteps++}catch(e){lastErr=e}
       arFetchedAt={at,range:far,near:1};
       // Step 3: the rest out to 3 miles
       arBusy='Finding more nearby…';
-      try{mergeLocal(parseLocal(await overpass(nearQ(c,4828).replace('[timeout:20]','[timeout:40]'),45000)));arFetchedAt.near=3;okSteps++}catch(e){lastErr=e}
+      try{mergeLocal(parseLocal(await overpass(nearQ(at.lat,at.lng,4828,40),45000)));arFetchedAt.near=3;okSteps++}catch(e){lastErr=e}
       if(okSteps){
         arMsg('');
         saveArea({lat:at.lat,lng:at.lng,farMi:far,nearMi:arFetchedAt.near,time:Date.now(),pois:arPois,local:arLocal,
@@ -1200,7 +1192,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v26 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v27 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
