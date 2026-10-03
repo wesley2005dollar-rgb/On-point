@@ -44,7 +44,7 @@ button{cursor:pointer}
 #map{position:absolute;inset:0;background:#DDE3E6}
 
 /* Top bar */
-.top{position:absolute;left:0;right:0;top:0;z-index:500;padding:calc(var(--safe-t) + 10px) 12px 10px;display:flex;align-items:center;gap:10px;background:var(--slate);color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.15)}
+.top{position:absolute;left:0;right:0;top:0;z-index:500;padding:calc(var(--safe-t) + 10px) 12px 8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;background:var(--slate);color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.15)}
 .brand{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:26px;letter-spacing:.5px;line-height:1;display:flex;align-items:center;gap:8px}
 .brand svg{width:20px;height:26px}
 .readout{margin-left:auto;text-align:right;font-size:13px;line-height:1.25;color:#C9D3DA;font-variant-numeric:tabular-nums}
@@ -59,15 +59,21 @@ button{cursor:pointer}
 .fab.on{color:var(--you)}
 .dock{position:absolute;left:12px;right:12px;bottom:calc(var(--safe-b) + 14px);z-index:500;display:flex;gap:10px}
 .dock button{flex:1;height:54px;border:0;border-radius:14px;font-weight:600;font-size:17px;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.dock .btn-tool{flex:0 0 58px;display:grid;place-items:center;background:var(--slate);color:#fff}
+.dock .btn-tool svg{width:26px;height:26px}
+.toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.toolgrid button{border:1.5px solid var(--line);background:#fff;border-radius:14px;padding:16px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:600;font-size:16px}
+.toolgrid button svg{width:30px;height:30px}
+.toolgrid small{font-weight:400;font-size:13px;color:var(--muted);text-align:center;line-height:1.3}
 .btn-flag{background:var(--flag);color:#fff}
 .btn-plain{background:var(--paper);color:var(--ink)}
-.calbar{position:absolute;left:12px;right:12px;top:calc(var(--safe-t) + 70px);z-index:600;background:#FFF4E8;border:1.5px solid #F2B37A;color:var(--ink);border-radius:12px;padding:10px 12px;display:none;align-items:center;gap:10px;font-size:14px;line-height:1.35;box-shadow:0 3px 10px rgba(0,0,0,.18)}
+.calbar{position:absolute;left:12px;right:12px;top:calc(var(--safe-t) + 104px);z-index:600;background:#FFF4E8;border:1.5px solid #F2B37A;color:var(--ink);border-radius:12px;padding:10px 12px;display:none;align-items:center;gap:10px;font-size:14px;line-height:1.35;box-shadow:0 3px 10px rgba(0,0,0,.18)}
 .calbar.show{display:flex}
 .calbar b{display:block;font-size:15px}
 .calbar button{margin-left:auto;border:0;background:#fff;border-radius:8px;padding:8px 12px;font-weight:600;flex:none}
 .calbar .spin{width:22px;height:22px;border-radius:50%;border:3px solid #F2B37A;border-top-color:#F28C28;animation:sp 1s linear infinite;flex:none}
 @keyframes sp{to{transform:rotate(360deg)}}
-.hint{position:absolute;left:50%;transform:translateX(-50%);top:calc(var(--safe-t) + 72px);z-index:500;background:rgba(36,49,59,.92);color:#fff;padding:8px 14px;border-radius:20px;font-size:14px;white-space:nowrap;pointer-events:none;transition:opacity .4s}
+.hint{position:absolute;left:50%;transform:translateX(-50%);top:calc(var(--safe-t) + 106px);z-index:500;background:rgba(36,49,59,.92);color:#fff;padding:8px 14px;border-radius:20px;font-size:14px;white-space:nowrap;pointer-events:none;transition:opacity .4s}
 
 /* Sheet */
 .scrim{position:absolute;inset:0;z-index:900;background:rgba(20,28,34,.35);opacity:0;pointer-events:none;transition:opacity .2s}
@@ -97,7 +103,14 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 
 /* List */
 .list{list-style:none;margin:6px 0 0;padding:0}
-.list li button{width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:13px 2px;display:flex;align-items:center;gap:12px}
+.list li{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.list li .row-main{position:relative;z-index:1;width:100%;text-align:left;background:var(--paper);border:0;padding:13px 4px;display:flex;align-items:center;gap:12px;transition:transform .2s ease;touch-action:pan-y}
+.list li.dragging .row-main{transition:none}
+.list li .acts{position:absolute;top:0;right:0;bottom:0;display:flex}
+.list li .acts button{width:78px;border:0;color:#fff;font-weight:600;font-size:15px}
+.list li .acts .ed{background:#34444F}
+.list li .acts .dl{background:#B3261E}
+.swipe-hint{font-size:13px;color:var(--muted);margin:-8px 0 6px}
 .list .dot{width:14px;height:14px;border-radius:50%;flex:none}
 .list .t{font-weight:600;font-size:17px;display:block}
 .list .s{font-size:14px;color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:62vw}
@@ -129,6 +142,14 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .ar-tag .dotp{width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid var(--ink)}
 .ar-edge{position:absolute;top:50%;z-index:2;background:rgba(0,0,0,.5);color:#fff;border-radius:8px;padding:5px 8px;font-size:12px;pointer-events:none}
 .ar-msg{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);background:rgba(0,0,0,.6);color:#fff;padding:12px 16px;border-radius:12px;font-size:15px;text-align:center;max-width:80vw;z-index:4;display:none;cursor:pointer}
+/* Weather row */
+.wx{flex-basis:100%;display:flex;align-items:center;gap:12px;border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:10px;padding:6px 10px;font-size:14px;text-align:left;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
+.wx b{font-size:17px}
+.wx .wa{display:inline-block;transition:transform .3s}
+.wx .dim{opacity:.7}
+.hrs{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px}
+.hr{flex:none;width:64px;background:#EEF0F1;border-radius:12px;padding:8px 4px;text-align:center;font-size:13px}
+.hr b{display:block;font-size:17px}
 /* Toast */
 .toast{position:absolute;left:50%;bottom:calc(var(--safe-b) + 84px);transform:translate(-50%,20px);z-index:1200;background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:15px;opacity:0;pointer-events:none;transition:all .25s;max-width:88vw;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -141,6 +162,18 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .you.moving .arrow{display:block}.you.moving .you-dot{display:none}
 .you .cone{position:absolute;left:0;top:0;width:110px;height:110px;display:none;transition:transform .2s ease-out}
 .you .cone.on{display:block}
+.fab.rec{background:#B3261E;color:#fff;animation:recpulse 1.6s ease-in-out infinite}
+.fab.rec.paused{animation:none;background:#F28C28}
+@keyframes recpulse{0%,100%{box-shadow:0 3px 10px rgba(0,0,0,.25),0 0 0 0 rgba(179,38,30,.5)}50%{box-shadow:0 3px 10px rgba(0,0,0,.25),0 0 0 10px rgba(179,38,30,0)}}
+.skcv{position:absolute;inset:0;width:100%;height:100%;z-index:460;touch-action:none;display:none}
+.skcv.show{display:block}
+.skcv.pan{pointer-events:none}
+.skcol{width:34px;height:34px;flex:none!important;border-radius:50%!important;border:3px solid #fff!important;box-shadow:0 0 0 2px var(--line)}
+.skcol[aria-pressed=true]{box-shadow:0 0 0 3px var(--ink)}
+.trkstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0}
+.trkstats div{background:#EEF0F1;border-radius:12px;padding:8px 10px}
+.trkstats small{display:block;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase}
+.trkstats b{font-size:19px;font-variant-numeric:tabular-nums}
 .navcard{position:absolute;left:0;right:0;bottom:0;z-index:940;background:var(--paper);border-radius:18px 18px 0 0;padding:12px 16px calc(var(--safe-b) + 14px);box-shadow:0 -4px 20px rgba(0,0,0,.25);display:none}
 .navcard.show{display:block}
 .navcard h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:24px;margin:0;line-height:1.15}
@@ -169,7 +202,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .tower-ic svg{display:block;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.45))}
 .flag-pin svg{display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}
 .leaflet-control-attribution{font-size:10px}
-.leaflet-top{top:calc(var(--safe-t) + 62px)}
+.leaflet-top{top:calc(var(--safe-t) + 100px)}
 /* Layers sheet */
 .sec{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:18px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
 .opt{width:100%;display:flex;align-items:center;gap:12px;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px}
@@ -208,6 +241,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <button class="icon-btn" id="layerBtn" aria-label="Map layers" title="Map layers">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5z"/><path d="m2 13 10 5 10-5"/></svg>
   </button>
+  <button class="wx" id="wx" aria-label="Weather details"><span class="dim">Loading weather…</span></button>
 </header>
 
 <div class="hint" id="hint">Tap the map to drop a pin</div>
@@ -218,6 +252,15 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 <div class="legend" id="legend" aria-hidden="true"><b id="legendTitle">Water temp</b><div class="bar"></div><div class="ends"><span>Colder</span><span>Warmer</span></div></div>
 
 <div class="fab-col">
+  <button class="fab" id="msBtn" aria-label="Measure distance" title="Measure" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2" y="8" width="20" height="8" rx="1.5" transform="rotate(-30 12 12)"/><path d="M7.2 10.6l1 1.8M10 9l1.6 2.8M12.8 7.4l1 1.8M15.6 5.8l1.6 2.8" stroke-linecap="round"/></svg>
+  </button>
+  <button class="fab" id="skBtn" aria-label="Draw on the map" title="Draw / write" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg>
+  </button>
+  <button class="fab" id="trkBtn" aria-label="Tracker: record where you go" title="Tracker">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19c3-1 3-6 7-6s4 4 7 2 2-7 2-7"/><circle cx="4" cy="19" r="1.8" fill="currentColor"/><circle cx="20" cy="8" r="1.8"/></svg>
+  </button>
   <button class="fab" id="arBtn" aria-label="First-person camera view" title="Look around">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 8h3.5L8 5.5h8L17.5 8H21v11H3z"/><circle cx="12" cy="13.5" r="3.6"/></svg>
   </button>
@@ -231,6 +274,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 
 <nav class="dock">
   <button class="btn-plain" id="listBtn">Pins (<span id="count">0</span>)</button>
+  <button class="btn-tool" id="toolBtn" aria-label="Draw and measure"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg></button>
   <button class="btn-flag" id="pinHereBtn">Pin where I am</button>
 </nav>
 
@@ -243,6 +287,42 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <div class="seg" id="navMode"><button data-m="car" aria-pressed="true">🚗 Drive</button><button data-m="foot" aria-pressed="false">🚶 Walk</button><button data-m="bike" aria-pressed="false">🚲 Bike</button></div>
   <div class="row" style="margin-top:6px"><button class="b-ghost" id="navPin">⚑ Pin it</button><button class="b-ghost" id="navG">Google Maps</button><button class="b-ghost" id="navA">Apple Maps</button></div>
   <div class="row" style="margin-top:8px"><button class="b-ghost" id="navCam">📷 Back to camera</button><button class="b-primary" id="navEnd">Done</button></div>
+</div>
+<div class="dlpanel" id="prpanel" role="dialog" aria-label="Property lookup" style="padding-top:10px">
+  <h3>🏠 Who owns this?</h3>
+  <div class="dlp-hint" id="prHint">Tap any spot on the map to look up that property.</div>
+  <div class="row" style="margin-top:6px"><button class="b-ghost" id="prKey">Regrid key</button><button class="b-primary" id="prDone">Done</button></div>
+</div>
+<div class="dlpanel" id="mspanel" role="dialog" aria-label="Measure" style="padding-top:10px">
+  <div style="display:flex;align-items:baseline;gap:10px"><b id="msTotal" style="font:700 30px/1 'Barlow Condensed','Arial Narrow',sans-serif">0 ft</b><span id="msSub" class="dlp-hint" style="margin:0"></span></div>
+  <div class="dlp-hint" id="msHint">Tap the map to add points. Each stretch shows its own distance.</div>
+  <div class="seg"><button id="msMe">📍 Start from me</button><button id="msArea" aria-pressed="false">▱ Area</button></div>
+  <div class="row" style="margin-top:6px"><button class="b-ghost" id="msUndo">↶ Undo</button><button class="b-ghost" id="msClear">Clear</button><button class="b-primary" id="msDone">Done</button></div>
+</div>
+<canvas class="skcv" id="skcv"></canvas>
+<div class="dlpanel" id="skpanel" role="dialog" aria-label="Draw on the map" style="padding-top:10px">
+  <div class="seg" id="skTools"><button data-t="pen" aria-pressed="true">✏ Write</button><button data-t="erase" aria-pressed="false">⌫ Erase</button><button data-t="pan" aria-pressed="false">✋ Move map</button></div>
+  <div class="seg" id="skColors"></div>
+  <div class="seg" id="skWidth"><button data-w="3">Fine</button><button data-w="6" aria-pressed="true">Medium</button><button data-w="12">Thick</button></div>
+  <div class="row" style="margin-top:6px"><button class="b-ghost" id="skUndo">↶ Undo</button><button class="b-ghost" id="skHide">Hide all</button><button class="b-primary" id="skDone">Done</button></div>
+</div>
+<div class="dlpanel" id="tepanel" role="dialog" aria-label="Edit track">
+  <input type="text" id="teName" maxlength="80" aria-label="Track name" style="font-weight:600;margin-bottom:6px">
+  <div class="seg" id="teMode"><button data-m="cut" aria-pressed="true">✂ Remove part</button><button data-m="add" aria-pressed="false">➕ Add on</button></div>
+  <div id="teCut">
+    <div class="dlp-hint">Slide the two handles to pick a stretch (shown <b style="color:#B3261E">red</b>), then remove it or keep only it.</div>
+    <label class="dlp-hint" style="display:block">From <span id="teAv"></span><input type="range" id="teA" min="0" value="0" style="width:100%"></label>
+    <label class="dlp-hint" style="display:block">To <span id="teBv"></span><input type="range" id="teB" min="0" value="0" style="width:100%"></label>
+    <div class="seg"><button id="teDel">Remove red part</button><button id="teKeep">Keep only red part</button></div>
+  </div>
+  <div id="teAdd" style="display:none">
+    <div class="dlp-hint">Tap the map to add points to the track, or keep recording from where it ends.</div>
+    <div class="seg" id="teEnd"><button data-e="end" aria-pressed="true">Add to end</button><button data-e="start" aria-pressed="false">Add to start</button></div>
+    <div class="seg"><button id="teRec">● Continue recording</button></div>
+    <div class="seg"><select id="teJoinSel" style="flex:2;height:40px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-size:15px;padding:0 8px"></select><button id="teJoin" style="flex:1">Join</button></div>
+  </div>
+  <div class="dlp-est" id="teInfo"></div>
+  <div class="row" style="margin-top:8px"><button class="b-ghost" id="teUndo">↶ Undo</button><button class="b-ghost" id="teCancel">Cancel</button><button class="b-flag" id="teSave">Save</button></div>
 </div>
 <div class="dlpanel" id="dlpanel" role="dialog" aria-label="Choose area to download">
   <h3>Choose what to download</h3>
@@ -361,7 +441,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <details class="meta"><summary>All FCC details</summary><div style="margin-top:6px;line-height:1.5">${extra||'None'}</div></details>
       <div class="row"><button class="b-primary" id="tNav">Directions</button><button class="b-flag" id="tPin">Pin it</button></div>`);
     $('tNav').onclick=()=>{closeSheet();startNav({name:owner||'Cell tower',sub:'Cell tower',icon:'📡',lat:t.lat,lng:t.lng})};
-    $('tPin').onclick=()=>{newPinAt(t.lat,t.lng);setTimeout(()=>{const f=$('fTitle');if(f)f.value='Cell tower'+(owner?' – '+owner:'')},30)};
+    $('tPin').onclick=()=>{newPinAt(t.lat,t.lng,'Cell tower'+(owner?' – '+owner:''))};
   }
 
   // Live air temperature on land (Open-Meteo, free weather service): a grid of readings across the map
@@ -402,8 +482,12 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       if(typeof t==='number'){myTemp=t;try{localStorage.setItem('onpoint.myTemp',JSON.stringify({t,at:myTempAt}))}catch(e){}updateReadout()}
     }catch(e){myTempAt=0}
   }
-  setInterval(()=>loadMyTemp(),60000);
 
+  // Property lines: Regrid parcel tiles (paid service, needs your key)
+  let regridKey='';try{regridKey=localStorage.getItem('onpoint.regrid')||''}catch(e){}
+  const parcelTiles=L.tileLayer('',{maxZoom:20,maxNativeZoom:20,minZoom:10,zIndex:8,attribution:'Parcels © Regrid'});
+  function parcelUrl(){return `https://tiles.regrid.com/api/v1/parcels/{z}/{x}/{y}.png?token=${encodeURIComponent(regridKey)}`}
+  if(regridKey)parcelTiles.setUrl(parcelUrl(),true);
   const OVERLAYS={
     chart:{name:'Nautical chart depths',desc:'NOAA charts with depth soundings and contours — coast, bays, big rivers and some large lakes',
       layer:new EsriExport('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/MapServer/export',{maxZoom:20,opacity:.9,zIndex:5,attribution:'Charts © NOAA'})},
@@ -411,6 +495,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       layer:L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:18,zIndex:6,attribution:'© OpenSeaMap'})},
     sst:{name:'Ocean water temp',desc:'NASA daily sea-surface temperature, about 1 km detail',temp:'Ocean water temp',
       layer:L.tileLayer(gibs('GHRSST_L4_MUR_Sea_Surface_Temperature'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'SST © NASA GIBS'})},
+    parcels:{name:'Property lines',desc:'Property boundaries (Regrid — needs your key). Tap a property with 🏠 in the ✏ tools to see the owner',layer:parcelTiles},
     towers:{name:'Cell towers',desc:'FCC-licensed cellular sites near you. Not every carrier site is listed. Zoom in to load',layer:towers},
     air:{name:'Air temperature (live)',desc:'Current temperature across the map, updated every 15 min',layer:airLayer},
     lst:{name:'Land & lake surface temp',desc:'NASA daily daytime surface temp. Gaps where it was cloudy',temp:'Surface temp',
@@ -443,10 +528,11 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 32 (Google Maps hand-off)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 43 (property lookup)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
+      if(k==='parcels'&&!regridKey&&!layerState.on.includes('parcels')){closeSheet();showRegridKey(true);return}
       layerState.on=layerState.on.includes(k)?layerState.on.filter(x=>x!==k):[...layerState.on,k];applyLayers();
       b.setAttribute('aria-pressed',layerState.on.includes(k));
       if(layerState.on.includes(k)&&(OVERLAYS[k].layer.options||{}).maxNativeZoom===7&&map.getZoom()>11)toast('Zoom out to see the temperature pattern');};
@@ -519,13 +605,50 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     gpsSpeed=pos.coords.speed||0;if(gpsSpeed>=3.6)lastDriveAt=Date.now();
     gpsHeading=(typeof pos.coords.heading==='number'&&!isNaN(pos.coords.heading))?pos.coords.heading:null;
     if(!meMarker){meMarker=L.marker([lat,lng],{icon:youIcon,interactive:false,zIndexOffset:1000}).addTo(map);
-      meCircle=L.circle([lat,lng],{radius:acc,color:'#1E7FD8',weight:1,fillOpacity:.1,interactive:false}).addTo(map);}
-    else{meMarker.setLatLng([lat,lng]);meCircle.setLatLng([lat,lng]).setRadius(acc);}
+      meCircle=L.circle([lat,lng],{radius:acc,color:'#1E7FD8',weight:1,fillOpacity:.1,interactive:false}).addTo(map);
+      disp={lat,lng};}
+    else{meCircle.setRadius(acc);glideTo(lat,lng);}
     if(first) map.setView([lat,lng],17);
-    else if(follow) map.panTo([lat,lng],{animate:true});
     $('locBtn').classList.toggle('on',follow);
-    updateReadout();drawDirection();autoCalSample();if(nav)navUpdate();bgPrefetch();
+    updateReadout();drawDirection();autoCalSample();if(nav)navUpdate();bgPrefetch();trkOnPos(pos);wxLoad(false);
     if(headingOn){const t=currentHeading();if(t!=null&&(lastSet==null||Math.abs(((t-lastSet+540)%360)-180)>=2)){lastSet=t;map.setBearing(-t)}}
+  }
+  // ---- Smooth movement ----
+  // GPS only updates about once a second, so at speed the arrow hopped from fix to fix.
+  // Now it glides between fixes and keeps coasting along your heading until the next one arrives,
+  // and the map follows smoothly instead of jumping.
+  let disp=null,glide=null,glideRaf=0,prevFixAt=0;
+  function meShown(){return disp?[disp.lat,disp.lng]:me?[me.lat,me.lng]:null}
+  function glideTo(lat,lng){
+    const now=performance.now(),gap=prevFixAt?now-prevFixAt:1000;prevFixAt=now;
+    if(!disp){disp={lat,lng}}
+    const jump=haversine(disp,{lat,lng});
+    if(jump>400||document.visibilityState!=='visible'){disp={lat,lng};glide=null;placeMe();return}   // big jump: just move
+    glide={from:{...disp},to:{lat,lng},t0:now,dur:Math.max(250,Math.min(1600,gap))};
+    if(!glideRaf)glideRaf=requestAnimationFrame(glideFrame);
+  }
+  function placeMe(){
+    if(!meMarker||!disp)return;
+    meMarker.setLatLng([disp.lat,disp.lng]);meCircle.setLatLng([disp.lat,disp.lng]);
+    if(follow)map.setView([disp.lat,disp.lng],map.getZoom(),{animate:false});
+    if(typeof navRedraw==='function')navRedraw();
+  }
+  function glideFrame(now){
+    glideRaf=0;if(!glide)return;
+    const t=(now-glide.t0)/glide.dur;
+    if(t<=1){
+      const e=t;   // linear: steady speed looks most natural for driving
+      disp={lat:glide.from.lat+(glide.to.lat-glide.from.lat)*e,lng:glide.from.lng+(glide.to.lng-glide.from.lng)*e};
+    }else{
+      // past the last fix: coast along your heading for up to 1.2 s (stops if GPS goes quiet)
+      const over=Math.min((now-glide.t0-glide.dur)/1000,1.2);
+      if(gpsSpeed>2&&gpsHeading!=null&&over<1.2){
+        const d=gpsSpeed*over,r=Math.PI/180,b=gpsHeading*r;
+        disp={lat:glide.to.lat+d*Math.cos(b)/111320,lng:glide.to.lng+d*Math.sin(b)/(111320*Math.cos(glide.to.lat*r))};
+      }else{disp={...glide.to};placeMe();glide=null;return}
+    }
+    placeMe();
+    glideRaf=requestAnimationFrame(glideFrame);
   }
   function onErr(e){
     const msg=e.code===1?'Location is blocked. Allow location for this page in your browser settings.':
@@ -567,16 +690,15 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   $('locBtn').onclick=()=>{
     enableCompass(false);
     if(!me){toast('Waiting for your location…');return}
-    follow=true;$('locBtn').classList.add('on');map.setView([me.lat,me.lng],Math.max(map.getZoom(),16));
+    follow=true;$('locBtn').classList.add('on');map.setView(meShown()||[me.lat,me.lng],Math.max(map.getZoom(),16));
   };
 
   function updateReadout(){
     if(!me) return;
     const age=Math.round((Date.now()-lastFix)/1000);
     const fresh=age<8?'live':age<60?age+'s ago':Math.round(age/60)+' min ago';
-    const tmp=myTemp!=null?` · ${Math.round(myTemp)}°F`:'';
+    const tmp='';
     $('readout').innerHTML=`<b>${me.lat.toFixed(5)}, ${me.lng.toFixed(5)}</b><br>±${fmtDist(me.acc)} · ${fresh}${tmp}`;
-    if(Date.now()-myTempAt>10*60*1000)loadMyTemp();
   }
 
   // ---------- compass & rotation ----------
@@ -770,7 +892,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     if(!(await enableCompass(true)))return;
     headingOn=true;lastSet=null;
     $('compassBtn').classList.add('head');
-    if(me&&follow)map.setView([me.lat,me.lng],Math.max(map.getZoom(),16));
+    if(me&&follow)map.setView(meShown(),Math.max(map.getZoom(),16));
     toast('Map turns with you — tap again for north up');
     setTimeout(()=>{if(headingOn&&currentHeading()==null)toast('No compass reading from this phone')},2500);
   }
@@ -837,14 +959,14 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   $('scrim').onclick=closeSheet;
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 
-  function editor(p,isNew){
+  function editor(p,isNew,justSaved){
     draft={...p};
     const sw=COLORS.map(c=>`<button type="button" class="sw" style="background:${c}" data-c="${c}" aria-label="Color ${c}" aria-pressed="${c===draft.color}"></button>`).join('');
     openSheet(`
       <h2 id="sheetTitle">${isNew?'New pin':'Edit pin'}</h2>
       <div class="coords">${draft.lat.toFixed(6)}, ${draft.lng.toFixed(6)}${me?' &nbsp;·&nbsp; '+distLabel(draft)+' from you':''}</div>
       <label class="f" for="fTitle">Name</label>
-      <input type="text" id="fTitle" maxlength="80" placeholder="Truck parking, fishing spot, cache…" value="${esc(draft.title)}">
+      <input type="text" id="fTitle" maxlength="80" placeholder="Optional — e.g. truck parking, fishing spot" value="${esc(draft.title)}">
       <div class="two">
         <div><label class="f" for="fDepth">Depth (ft)</label><input type="text" inputmode="decimal" id="fDepth" placeholder="—" value="${draft.depth??''}"></div>
         <div><label class="f" for="fTemp">Water temp (°F)</label><input type="text" inputmode="decimal" id="fTemp" placeholder="—" value="${draft.temp??''}"></div>
@@ -860,7 +982,8 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       if(draftMarker)draftMarker.setIcon(flagIcon(draft.color));};
     $('cancelB').onclick=closeSheet;
     $('saveB').onclick=()=>{
-      draft.title=$('fTitle').value.trim()||'Untitled pin';
+      onSheetClose=null;
+      draft.title=$('fTitle').value.trim();
       draft.note=$('fNote').value;
       const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:null};
       draft.depth=num($('fDepth').value);draft.temp=num($('fTemp').value);
@@ -870,19 +993,37 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       save();drawPin(draft);setCount();
       const saved=draft; if(draftMarker){map.removeLayer(draftMarker);draftMarker=null} draft=null;
       closeSheet();toast(isNew?'Pin saved':'Changes saved');
-      if(routeAfter){routeAfter=false;startNav({name:saved.title,sub:'Your pin',icon:'⚑',lat:saved.lat,lng:saved.lng});return}
+      if(routeAfter){routeAfter=false;startNav({name:saved.title||'Pin',sub:'Your pin',icon:'⚑',lat:saved.lat,lng:saved.lng});return}
       showPin(saved.id);
     };
     let routeAfter=false;
     $('saveRouteB').onclick=()=>{routeAfter=true;$('saveB').onclick()};
     if(isNew) setTimeout(()=>$('fTitle').focus(),260);
+    // Already-saved pins: Delete right here, and anything typed is kept even if you just close the sheet
+    if(!isNew){
+      const row=document.createElement('div');row.className='row';row.style.marginTop='10px';
+      row.innerHTML='<button class="b-danger" id="delPinB">Delete pin</button>';
+      $('sheetBody').appendChild(row);
+      $('delPinB').onclick=()=>{const id=p.id;pins=pins.filter(x=>x.id!==id);save();
+        if(markers.has(id)){map.removeLayer(markers.get(id));markers.delete(id)}setCount();draft=null;closeSheet();toast('Pin deleted')};
+      const keep=()=>{const i=pins.findIndex(x=>x.id===p.id);if(i<0||!$('fTitle'))return;
+        const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:null};
+        Object.assign(pins[i],{title:$('fTitle').value.trim()||pins[i].title,note:$('fNote').value,depth:num($('fDepth').value),temp:num($('fTemp').value),color:draft?draft.color:pins[i].color,updated:Date.now()});
+        save();drawPin(pins[i])};
+      onSheetClose=keep;
+      $('cancelB').textContent='Close';
+      $('cancelB').onclick=()=>{closeSheet()};
+      if(justSaved)setTimeout(()=>{const n=$('fNote');if(n)n.focus()},260);
+    }
   }
 
-  function newPinAt(lat,lng){
-    const p={id:'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),lat,lng,title:'',note:'',color:COLORS[0],created:Date.now()};
-    if(draftMarker) map.removeLayer(draftMarker);
-    draftMarker=L.marker([lat,lng],{icon:flagIcon(p.color),interactive:false,opacity:.85}).addTo(map);
-    editor(p,true);
+  // Tapping the map just saves a pin — no name, no pop-up. Tap the pin any time to add a note.
+  function newPinAt(lat,lng,title){
+    const p={id:'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),lat,lng,
+      title:title||'',note:'',color:COLORS[0],created:Date.now(),updated:Date.now()};
+    pins.unshift(p);save();drawPin(p);setCount();
+    toast(title?`Pinned ${title}`:'Pin saved — tap it to add a note');
+    return p;
   }
 
   function showPin(id){
@@ -890,7 +1031,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     follow=false;$('locBtn').classList.remove('on');
     map.panTo([p.lat,p.lng]);
     openSheet(`
-      <h2 id="sheetTitle"><span style="color:${p.color}">⚑</span> ${esc(p.title)}</h2>
+      <h2 id="sheetTitle"><span style="color:${p.color}">⚑</span> ${esc(p.title||'Pin')}</h2>
       <div class="coords">${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}</div>
       ${me?`<span class="dist">${distLabel(p)}</span>`:''}
       ${waterChips(p)?`<div class="chips">${waterChips(p)}</div>`:''}
@@ -898,11 +1039,11 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <div class="meta">Pinned ${fmtDate(p.created)}${p.updated&&p.updated-p.created>60000?' · edited '+fmtDate(p.updated):''}</div>
       <div class="row"><button class="b-primary" id="navB">Route here</button><button class="b-ghost" id="editB">Edit</button></div>
       <div class="row" style="margin-top:10px"><button class="b-ghost" id="copyB">Copy coordinates</button><button class="b-danger" id="delB">Delete</button></div>`);
-    $('navB').onclick=()=>{closeSheet();startNav({name:p.title,sub:'Your pin'+(p.note?' · '+p.note.split('\n')[0].slice(0,60):''),icon:'⚑',lat:p.lat,lng:p.lng})};
+    $('navB').onclick=()=>{closeSheet();startNav({name:p.title||'Pin',sub:'Your pin'+(p.note?' · '+p.note.split('\n')[0].slice(0,60):''),icon:'⚑',lat:p.lat,lng:p.lng})};
     $('editB').onclick=()=>editor(p,false);
     $('copyB').onclick=async()=>{try{await navigator.clipboard.writeText(`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`);toast('Coordinates copied')}catch(e){toast(`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`)}};
     $('delB').onclick=()=>{
-      if(!confirm(`Delete "${p.title}"? This can't be undone.`))return;
+      if(!confirm(`Delete ${p.title?'"'+p.title+'"':'this pin'}? This can't be undone.`))return;
       pins=pins.filter(x=>x.id!==p.id);save();
       if(markers.has(p.id)){map.removeLayer(markers.get(p.id));markers.delete(p.id)}
       setCount();closeSheet();toast('Pin deleted');
@@ -911,16 +1052,70 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 
   function showList(){
     const sorted=[...pins].sort((a,b)=>me?haversine(me,a)-haversine(me,b):b.created-a.created);
-    const items=sorted.map(p=>`<li><button data-id="${p.id}"><span class="dot" style="background:${p.color}"></span>
-      <span><span class="t">${esc(p.title)}</span><span class="s">${[waterText(p),esc((p.note||'').split('\n')[0])].filter(Boolean).join(' · ')||'No notes'}</span></span>
+    const items=sorted.map(p=>`<li data-id="${p.id}"><div class="acts"><button class="ed" data-act="edit">Edit</button><button class="dl" data-act="del">Delete</button></div>
+      <button class="row-main"><span class="dot" style="background:${p.color}"></span>
+      <span><span class="t">${esc(p.title||'Pin')}</span><span class="s">${[waterText(p),esc((p.note||'').split('\n')[0])].filter(Boolean).join(' · ')||'No notes'}</span></span>
       <span class="d">${distLabel(p)}</span></button></li>`).join('');
     openSheet(`<h2 id="sheetTitle">Your pins</h2>
       <div class="coords">${pins.length?(me?'Closest first':'Newest first'):''}</div>
-      ${pins.length?`<ul class="list" id="plist">${items}</ul>`:'<div class="empty">No pins yet. Tap anywhere on the map, or use “Pin where I am” to mark your spot.</div>'}
+      ${pins.length?`<div class="swipe-hint">Swipe a pin left to edit or delete</div><ul class="list" id="plist">${items}</ul>`:'<div class="empty">No pins yet. Tap anywhere on the map, or use “Pin where I am” to mark your spot.</div>'}
       <div class="tools"><button id="expB">Export backup</button><button id="impB">Import backup</button></div>`);
-    if(pins.length) $('plist').onclick=e=>{const b=e.target.closest('button[data-id]');if(b)showPin(b.dataset.id)};
+    if(pins.length)wireSwipe($('plist'));
     $('expB').onclick=exportPins;
     $('impB').onclick=()=>$('importFile').click();
+  }
+  // Swipe left on a pin to show Edit / Delete (swipe all the way to delete). Tap opens it.
+  function wireSwipe(ul){
+    const W=156;let open=null;
+    const setX=(li,x)=>{li.querySelector('.row-main').style.transform=x?`translateX(${x}px)`:''};
+    const close=li=>{if(li){setX(li,0);li._x=0}if(open===li)open=null};
+    ul.querySelectorAll('li').forEach(li=>{
+      const main=li.querySelector('.row-main');let sx=0,sy=0,dx=0,dir=null;li._x=0;
+      main.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;dx=0;dir=null;li.classList.add('dragging');
+        if(open&&open!==li)close(open)},{passive:true});
+      main.addEventListener('touchmove',e=>{const t=e.touches[0],mx=t.clientX-sx,my=t.clientY-sy;
+        if(!dir){if(Math.abs(mx)>8||Math.abs(my)>8)dir=Math.abs(mx)>Math.abs(my)?'h':'v';else return}
+        if(dir!=='h')return;
+        e.preventDefault();
+        dx=mx;let x=Math.min(0,(li._x||0)+dx);if(x<-W)x=-W+(x+W)*0.35;   // rubber-band past the buttons
+        setX(li,x)},{passive:false});
+      main.addEventListener('touchend',()=>{li.classList.remove('dragging');
+        if(dir!=='h')return;
+        const x=Math.min(0,(li._x||0)+dx);
+        if(x<-W-90){deleteFromList(li);return}             // long swipe = delete
+        if(x<-W/2){setX(li,-W);li._x=-W;open=li}else close(li);
+        li._swiped=Date.now()});
+      main.addEventListener('click',()=>{
+        if(li._swiped&&Date.now()-li._swiped<350)return;
+        if(li._x){close(li);return}
+        showPin(li.dataset.id)});
+      li.querySelector('.acts').addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;
+        if(b.dataset.act==='edit'){const p=pins.find(x=>x.id===li.dataset.id);if(p){closeSheet();editor(p,false)}}
+        else deleteFromList(li)});
+    });
+  }
+  function deleteFromList(li){
+    const id=li.dataset.id,p=pins.find(x=>x.id===id);if(!p)return;
+    const idx=pins.indexOf(p);
+    pins=pins.filter(x=>x.id!==id);save();
+    if(markers.has(id)){map.removeLayer(markers.get(id));markers.delete(id)}
+    setCount();
+    li.style.transition='height .2s, opacity .2s';li.style.height=li.offsetHeight+'px';
+    requestAnimationFrame(()=>{li.style.height='0';li.style.opacity='0'});
+    setTimeout(()=>{li.remove();if(!pins.length)showList()},220);
+    undoToast(p,idx);
+  }
+  // "Deleted — Undo" for a few seconds
+  function undoToast(p,idx){
+    let el=$('undoBar');
+    if(!el){el=document.createElement('div');el.id='undoBar';
+      el.style.cssText='position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);z-index:1300;background:#1C252C;color:#fff;border-radius:12px;padding:10px 12px 10px 16px;display:flex;gap:14px;align-items:center;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.35)';
+      document.body.appendChild(el)}
+    el.innerHTML=`<span>Pin deleted</span><button style="border:0;background:#fff;color:#1C252C;border-radius:8px;padding:7px 12px;font-weight:700">Undo</button>`;
+    el.style.display='flex';clearTimeout(el._t);
+    el.querySelector('button').onclick=()=>{pins.splice(Math.min(idx,pins.length),0,p);save();drawPin(p);setCount();el.style.display='none';
+      if($('sheet').classList.contains('show')&&$('plist'))showList();toast('Pin restored')};
+    el._t=setTimeout(()=>{el.style.display='none'},5000);
   }
 
   function exportPins(){
@@ -939,7 +1134,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       let added=0;
       list.forEach(p=>{if(typeof p.lat!=='number'||typeof p.lng!=='number'||!p.id)return;
         if(pins.some(x=>x.id===p.id))return;
-        pins.push({id:p.id,lat:p.lat,lng:p.lng,title:String(p.title||'Untitled pin'),note:String(p.note||''),depth:typeof p.depth==='number'?p.depth:null,temp:typeof p.temp==='number'?p.temp:null,color:COLORS.includes(p.color)?p.color:COLORS[0],created:p.created||Date.now(),updated:p.updated});
+        pins.push({id:p.id,lat:p.lat,lng:p.lng,title:String(p.title||''),note:String(p.note||''),depth:typeof p.depth==='number'?p.depth:null,temp:typeof p.temp==='number'?p.temp:null,color:COLORS.includes(p.color)?p.color:COLORS[0],created:p.created||Date.now(),updated:p.updated});
         drawPin(pins[pins.length-1]);added++;});
       save();setCount();closeSheet();toast(added?`Imported ${added} pin${added>1?'s':''}`:'No new pins in that file');
     }catch(err){toast('That file isn’t an On Point backup')}
@@ -1240,7 +1435,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v32 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v43 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1314,6 +1509,539 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   let arItems=[];
   $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t||!t._item)return;const p=t._item.p;closeAR();startNav({name:p.name,sub:p.sub,icon:p.icon||AR_TYPES[p.type].icon,lat:p.lat,lng:p.lng,ele:p.ele})};
+  // ---------- Weather at the top ----------
+  // Temperature, feels-like, wind direction & speed, gusts, humidity and conditions where you are
+  // (Open-Meteo, free). Tap the row for the next 12 hours. Shows the last reading with no signal.
+  const WX={0:['☀️','Clear'],1:['🌤','Mostly clear'],2:['⛅','Partly cloudy'],3:['☁️','Cloudy'],45:['🌫','Fog'],48:['🌫','Icy fog'],
+    51:['🌦','Light drizzle'],53:['🌦','Drizzle'],55:['🌧','Heavy drizzle'],56:['🌧','Freezing drizzle'],57:['🌧','Freezing drizzle'],
+    61:['🌦','Light rain'],63:['🌧','Rain'],65:['🌧','Heavy rain'],66:['🌧','Freezing rain'],67:['🌧','Freezing rain'],
+    71:['🌨','Light snow'],73:['🌨','Snow'],75:['❄️','Heavy snow'],77:['🌨','Snow grains'],80:['🌦','Showers'],81:['🌧','Showers'],82:['⛈','Heavy showers'],
+    85:['🌨','Snow showers'],86:['🌨','Snow showers'],95:['⛈','Thunderstorm'],96:['⛈','Storm & hail'],99:['⛈','Storm & hail']};
+  let wx=null,wxAt=0,wxWhere=null;
+  try{const v=JSON.parse(localStorage.getItem('onpoint.wx'));if(v){wx=v.d;wxAt=v.at;wxWhere=v.w}}catch(e){}
+  const card16=d=>CARD[Math.round(((d%360)+360)%360/22.5)%16];
+  function wxRender(){
+    const el=$('wx');if(!wx||!wx.current){return}
+    const c=wx.current,[ic,txt]=WX[c.weather_code]||['🌡',''];
+    const age=Math.round((Date.now()-wxAt)/60000);
+    myTemp=c.temperature_2m;
+    el.innerHTML=`<span>${ic} <b>${Math.round(c.temperature_2m)}°</b> <span class="dim">feels ${Math.round(c.apparent_temperature)}°</span></span>`+
+      `<span>💨 <span class="wa" style="transform:rotate(${(c.wind_direction_10m+180)%360}deg)">↑</span> ${card16(c.wind_direction_10m)} <b>${Math.round(c.wind_speed_10m)}</b> mph${c.wind_gusts_10m>c.wind_speed_10m+4?` <span class="dim">gusts ${Math.round(c.wind_gusts_10m)}</span>`:''}</span>`+
+      `<span class="dim">💧${Math.round(c.relative_humidity_2m)}%</span>`+
+      `<span class="dim" style="margin-left:auto">${age>15?(age<120?age+'m ago':Math.round(age/60)+'h ago'):txt}</span>`;
+  }
+  async function wxLoad(force){
+    if(!me||!navigator.onLine)return;
+    const moved=!wxWhere||haversine(me,wxWhere)>5000;
+    if(!force&&!moved&&Date.now()-wxAt<10*60000)return;
+    wxAt=Date.now();
+    try{
+      const u=`https://api.open-meteo.com/v1/forecast?latitude=${me.lat.toFixed(3)}&longitude=${me.lng.toFixed(3)}`+
+        `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation`+
+        `&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m&forecast_hours=12`+
+        `&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto`;
+      const d=await (await fetch(u)).json();
+      if(d&&d.current){wx=d;wxWhere={lat:me.lat,lng:me.lng};try{localStorage.setItem('onpoint.wx',JSON.stringify({d,at:wxAt,w:wxWhere}))}catch(e){}wxRender()}
+    }catch(e){wxAt=0}
+  }
+  setInterval(()=>{wxLoad(false);wxRender()},60000);
+  setTimeout(wxRender,0);
+  $('wx').onclick=()=>{
+    if(!wx||!wx.current){wxLoad(true);toast('Getting the weather…');return}
+    const c=wx.current,[ic,txt]=WX[c.weather_code]||['🌡',''],h=wx.hourly||{};
+    const hrs=(h.time||[]).map((t,i)=>{const [hi]=WX[h.weather_code[i]]||['🌡'];
+      return `<div class="hr">${new Date(t).toLocaleTimeString([], {hour:'numeric'})}<br>${hi}<b>${Math.round(h.temperature_2m[i])}°</b>💧${h.precipitation_probability[i]??0}%<br><span style="color:var(--muted)">${card16(h.wind_direction_10m[i])} ${Math.round(h.wind_speed_10m[i])}</span></div>`}).join('');
+    openSheet(`<h2 id="sheetTitle">${ic} ${Math.round(c.temperature_2m)}°F · ${txt}</h2>
+      <div class="coords">Feels like ${Math.round(c.apparent_temperature)}° · humidity ${Math.round(c.relative_humidity_2m)}%${c.precipitation?` · ${c.precipitation}" rain now`:''}</div>
+      <div class="nstats"><div class="nstat"><small>Wind from</small><b>${card16(c.wind_direction_10m)} ${Math.round(c.wind_direction_10m)}°</b></div>
+        <div class="nstat"><small>Speed / gusts</small><b>${Math.round(c.wind_speed_10m)} / ${Math.round(c.wind_gusts_10m)} mph</b></div></div>
+      <div class="sec">Next 12 hours</div><div class="hrs">${hrs}</div>
+      <p class="fine">Updated ${new Date(wxAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})} · Open-Meteo. The arrow points the way the wind is blowing.</p>
+      <div class="row"><button class="b-ghost" id="wxR">↻ Refresh</button><button class="b-primary" id="wxC">Close</button></div>`);
+    $('wxC').onclick=closeSheet;$('wxR').onclick=async()=>{await wxLoad(true);closeSheet();$('wx').click()};
+  };
+
+  // ---------- Pencil button (bottom bar): pick Draw or Measure ----------
+  $('toolBtn').onclick=()=>{
+    openSheet(`<h2 id="sheetTitle">Tools</h2>
+      <div class="toolgrid">
+        <button id="tDraw"><svg viewBox="0 0 24 24" fill="none" stroke="#E0287D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg>Draw / write<small>Write notes and sketch right on the map</small></button>
+        <button id="tMeasure"><svg viewBox="0 0 24 24" fill="none" stroke="#F28C28" stroke-width="2" stroke-linejoin="round"><rect x="2" y="8" width="20" height="8" rx="1.5" transform="rotate(-30 12 12)"/><path d="M7.2 10.6l1 1.8M10 9l1.6 2.8M12.8 7.4l1 1.8M15.6 5.8l1.6 2.8" stroke-linecap="round"/></svg>Measure<small>Distance between spots, or the area inside</small></button>
+        <button id="tProp" style="grid-column:1/-1"><span style="font-size:28px;line-height:1">🏠</span>Who owns this?<small>Tap any spot to look up the property and owner</small></button>
+      </div>`);
+    $('tDraw').onclick=()=>{closeSheet();if(ms.on)msClose();skOpen()};
+    $('tMeasure').onclick=()=>{closeSheet();if(skOn)skClose();msOpen()};
+    $('tProp').onclick=()=>{closeSheet();if(skOn)skClose();if(ms.on)msClose();propOpen()};
+  };
+
+  // ---------- Property: who owns this? ----------
+  // Free: finds the county and opens its official property records (Georgia counties: qPublic).
+  // With a Regrid key: owner, parcel number, acres, address, last sale, and the property outline.
+  let prOn=false,prShape=null,propWas=false;
+  function propHas(){return !!prShape}
+  function propSvg(pathOf){
+    if(!prShape)return '';let h='';
+    for(const ring of prShape){const d=pathOf([...ring,ring[0]]);if(!d)continue;
+      h+=`<path d="${d}Z" fill="rgba(224,40,125,.12)" stroke="#fff" stroke-width="6" stroke-linejoin="round" opacity=".9"/><path d="${d}Z" fill="none" stroke="#E0287D" stroke-width="3" stroke-linejoin="round"/>`}
+    return h;
+  }
+  function propOpen(){prOn=true;$('prpanel').classList.add('show');document.querySelector('.dock').style.display='none';
+    $('prHint').textContent='Tap any spot on the map to look up that property.'+(regridKey?'':' (Add a Regrid key to see owner names and property lines right here.)');
+    if(regridKey&&!layerState.on.includes('parcels')){layerState.on.push('parcels');applyLayers()}}
+  function propClose(){prOn=false;prShape=null;$('prpanel').classList.remove('show');document.querySelector('.dock').style.display='';navRedraw()}
+  $('prDone').onclick=propClose;$('prKey').onclick=()=>showRegridKey(false);
+  async function countyAt(lat,lng){
+    try{const d=await (await fetch(`https://geo.fcc.gov/api/census/area?lat=${lat}&lon=${lng}&censusYear=2020&format=json`)).json();
+      const r=d&&d.results&&d.results[0];if(r)return {county:r.county_name,st:r.state_code}}catch(e){}
+    try{const d=await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&lat=${lat}&lon=${lng}`)).json();
+      const a=d&&d.address;if(a&&a.county)return {county:a.county,st:(a['ISO3166-2-lvl4']||'').split('-')[1]||a.state}}catch(e){}
+    return null;
+  }
+  function officialLinks(c){
+    if(!c)return [];
+    const base=c.county.replace(/\s+(County|Parish|Borough)$/i,'');
+    const links=[];
+    if(c.st==='GA')links.push({t:`${c.county} property search (qPublic)`,u:`https://qpublic.schneidercorp.com/Application.aspx?App=${encodeURIComponent(base.replace(/[^A-Za-z]/g,''))}CountyGA&Layer=Parcels&PageType=Search`});
+    links.push({t:`Find ${c.county} tax assessor`,u:`https://www.google.com/search?q=${encodeURIComponent(c.county+' '+c.st+' tax assessor property search map')}`});
+    return links;
+  }
+  function regridRows(f){
+    const p=(f&&f.properties)||{},x=p.fields||p;
+    const get=(...k)=>{for(const key of k)if(x[key]!=null&&x[key]!=='')return x[key];return null};
+    const owner=get('owner','owner1','ownername'),apn=get('parcelnumb','parcelnumb_no_formatting','apn'),acres=get('ll_gisacre','gisacre','deeded_acres','acres');
+    const addr=get('address','saddress')||p.headline,mail=[get('mailadd'),get('mail_city'),get('mail_state2')].filter(Boolean).join(', ');
+    const sale=get('saledate'),price=get('saleprice'),use=get('usedesc','zoning_description','lbcs_activity_desc'),val=get('parval','improvval');
+    return {owner,apn,acres,addr,mail,sale,price,use,val};
+  }
+  async function propLookup(lat,lng){
+    prShape=null;navRedraw();
+    openSheet(`<h2 id="sheetTitle">🏠 Looking up…</h2><p class="fine">${lat.toFixed(5)}, ${lng.toFixed(5)}</p>`);
+    let rg=null,rgErr='';
+    if(regridKey&&navigator.onLine){
+      try{const r=await fetch(`https://app.regrid.com/api/v2/parcels/point?lat=${lat}&lon=${lng}&radius=5&return_geometry=true&token=${encodeURIComponent(regridKey)}`);
+        if(r.status===401||r.status===403)rgErr='Your Regrid key was refused (expired trial or wrong key).';
+        else{const d=await r.json();const fc=(d&&d.parcels)||d;rg=fc&&fc.features&&fc.features[0]||null;if(!rg)rgErr='No property record found at this spot.'}
+      }catch(e){rgErr='Couldn’t reach Regrid.'}
+    }
+    const c=navigator.onLine?await countyAt(lat,lng):null;
+    let body='';
+    if(rg){
+      const v=regridRows(rg),g=rg.geometry;
+      if(g){const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];
+        prShape=polys.map(pl=>pl[0].map(q=>[q[1],q[0]]));navRedraw();}
+      const row=(k,val)=>val?`<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted);min-width:96px">${k}</span><b style="font-weight:600">${esc(val)}</b></div>`:'';
+      body=`<h2 id="sheetTitle">🏠 ${esc(v.owner||'Owner not listed')}</h2>
+        <div class="coords">${esc(v.addr||'')}</div>
+        ${row('Parcel #',v.apn)}${row('Size',v.acres?(+v.acres).toFixed(2)+' acres':null)}${row('Use',v.use)}${row('Mailing',v.mail)}
+        ${row('Last sale',v.sale?(v.sale+(v.price?' · $'+Number(v.price).toLocaleString():'')):null)}${row('Value',v.val?'$'+Number(v.val).toLocaleString():null)}
+        <p class="fine">Outlined in pink on the map. From county records via Regrid — not a legal survey.</p>`;
+    }else{
+      body=`<h2 id="sheetTitle">🏠 ${c?esc(c.county+', '+c.st):'Property lookup'}</h2>
+        <div class="coords">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+        ${rgErr?`<p class="fine" style="color:#B3261E">${esc(rgErr)}</p>`:''}
+        <p class="fine" style="font-size:15px">${regridKey?'':'Owner records are public through the county. '}Open the county's property search below — the coordinates are copied so you can paste them, or find the spot on its map.</p>`;
+      try{navigator.clipboard.writeText(`${lat.toFixed(6)}, ${lng.toFixed(6)}`)}catch(e){}
+    }
+    const links=officialLinks(c).map((l,i)=>`<button class="opt" data-u="${i}"><span><span class="ot">${esc(l.t)}</span><span class="od">Official county records · opens in browser</span></span></button>`).join('');
+    openSheet(body+(links?`<div class="sec">County records</div><div id="prLinks">${links}</div>`:(navigator.onLine?'':'<p class="fine">No signal — property lookup needs a connection.</p>'))+
+      `<div class="row">${regridKey?'':'<button class="b-ghost" id="prAdd">Add Regrid key</button>'}<button class="b-ghost" id="prPin">⚑ Pin it</button><button class="b-primary" id="prOk">Close</button></div>`);
+    const L2=officialLinks(c);
+    if($('prLinks'))$('prLinks').onclick=e=>{const b=e.target.closest('[data-u]');if(b)window.open(L2[+b.dataset.u].u,'_blank')};
+    $('prOk').onclick=closeSheet;
+    $('prPin').onclick=()=>{const v=rg?regridRows(rg):{};newPinAt(lat,lng,v.owner?('Property – '+v.owner):'');closeSheet()};
+    if($('prAdd'))$('prAdd').onclick=()=>showRegridKey(false);
+  }
+  function showRegridKey(turnOnLayer){
+    openSheet(`<h2 id="sheetTitle">Regrid key</h2>
+      <p class="fine" style="font-size:15px;margin-top:4px">Regrid has property lines and owner names for the whole US. It's a paid service with a free trial — sign up at <b>regrid.com</b> (Parcel API), then copy your API token here.</p>
+      <label class="f" for="rgK">API token</label><input type="text" id="rgK" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your token" value="${esc(regridKey)}">
+      <p class="fine">Stays on this phone only. Each lookup and map area uses some of your Regrid allowance.</p>
+      <div class="row"><button class="b-ghost" id="rgSite">Open regrid.com</button><button class="b-ghost" id="rgClr">Remove</button><button class="b-flag" id="rgSave">Save</button></div>`);
+    $('rgSite').onclick=()=>window.open('https://regrid.com/api','_blank');
+    $('rgClr').onclick=()=>{regridKey='';try{localStorage.removeItem('onpoint.regrid')}catch(e){}
+      layerState.on=layerState.on.filter(k=>k!=='parcels');applyLayers();closeSheet();toast('Regrid key removed')};
+    $('rgSave').onclick=()=>{const k=$('rgK').value.trim();if(!k){toast('Paste a token first');return}
+      regridKey=k;try{localStorage.setItem('onpoint.regrid',k)}catch(e){}
+      parcelTiles.setUrl(parcelUrl());
+      if(turnOnLayer||prOn){if(!layerState.on.includes('parcels'))layerState.on.push('parcels');applyLayers()}
+      closeSheet();toast('Regrid key saved — zoom in to see property lines')};
+  }
+
+  // ---------- Measure ----------
+  // Tap points on the map; shows each stretch, the total, the direction, and (optionally) the area inside.
+  let ms={on:false,pts:[],area:false},msWas=false;
+  function msHas(){return ms.on&&ms.pts.length>0}
+  function msTotal(){let d=0;for(let i=1;i<ms.pts.length;i++)d+=haversine({lat:ms.pts[i-1][0],lng:ms.pts[i-1][1]},{lat:ms.pts[i][0],lng:ms.pts[i][1]});return d}
+  function msAreaM2(){
+    if(ms.pts.length<3)return 0;const R=6371000,r=Math.PI/180,lat0=ms.pts.reduce((a,q)=>a+q[0],0)/ms.pts.length;
+    const xy=ms.pts.map(q=>[R*q[1]*r*Math.cos(lat0*r),R*q[0]*r]);let a=0;
+    for(let i=0;i<xy.length;i++){const j=(i+1)%xy.length;a+=xy[i][0]*xy[j][1]-xy[j][0]*xy[i][1]}return Math.abs(a)/2;
+  }
+  function fmtArea(m2){const ac=m2/4046.86;if(ac<0.1)return Math.round(m2*10.7639).toLocaleString()+' sq ft';if(ac<640)return ac.toFixed(ac<10?2:1)+' acres';return (ac/640).toFixed(2)+' sq mi'}
+  function msLabel(x,y,text,dark){const w=text.length*7.2+14;
+    return `<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})"><rect x="${(-w/2).toFixed(1)}" y="-11" width="${w.toFixed(1)}" height="22" rx="7" fill="${dark?'#1C252C':'#fff'}" stroke="${dark?'#fff':'#1C252C'}" stroke-width="1.5"/>`+
+      `<text x="0" y="4.5" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12.5" fill="${dark?'#fff':'#1C252C'}">${text}</text></g>`}
+  function msSvg(pathOf,P){
+    if(!msHas())return '';
+    const pts=ms.pts.map(q=>[q[0],q[1]]),sp=pts.map(P);let h='';
+    if(ms.area&&pts.length>=3){
+      const d=sp.map((p,i)=>(i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join('')+'Z';
+      h+=`<path d="${d}" fill="rgba(242,140,40,.18)" stroke="none"/>`;
+    }
+    const line=pathOf(ms.area&&pts.length>=3?[...pts,pts[0]]:pts);
+    if(pts.length>1)h+=`<path d="${line}" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/><path d="${line}" fill="none" stroke="#F28C28" stroke-width="3.5" stroke-dasharray="10 6" stroke-linecap="round" stroke-linejoin="round"/>`;
+    // each stretch's length at its middle (skip if too short on screen)
+    const segs=[];for(let i=1;i<pts.length;i++)segs.push([i-1,i]);if(ms.area&&pts.length>=3)segs.push([pts.length-1,0]);
+    for(const [i,j] of segs){const a=sp[i],b=sp[j];if(Math.hypot(b.x-a.x,b.y-a.y)<70)continue;
+      h+=msLabel((a.x+b.x)/2,(a.y+b.y)/2,fmtDist(haversine({lat:pts[i][0],lng:pts[i][1]},{lat:pts[j][0],lng:pts[j][1]})),false)}
+    sp.forEach((p,i)=>{h+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${i===0?7:5.5}" fill="${i===0?'#2E9E5B':'#F28C28'}" stroke="#fff" stroke-width="2.5"/>`});
+    if(pts.length>1){const l=sp[sp.length-1];h+=msLabel(l.x,l.y-22,'Total '+fmtDist(msTotal()),true)}
+    if(ms.area&&pts.length>=3){const cx0=sp.reduce((a,p)=>a+p.x,0)/sp.length,cy0=sp.reduce((a,p)=>a+p.y,0)/sp.length;h+=msLabel(cx0,cy0,fmtArea(msAreaM2()),true)}
+    return h;
+  }
+  function msUpdate(){
+    const n=ms.pts.length,tot=msTotal();
+    $('msTotal').textContent=fmtDist(tot)+(tot>=1609.34?'':'');
+    let sub=[];
+    if(n>=2){const a=ms.pts[n-2],b=ms.pts[n-1],br=bearingTo({lat:a[0],lng:a[1]},{lat:b[0],lng:b[1]});
+      sub.push(`last stretch ${CARD[Math.round(br/22.5)%16]} ${Math.round(br)}°`)}
+    if(tot>=1609.34)sub.push(Math.round(tot*3.28084).toLocaleString()+' ft');
+    if(ms.area&&n>=3)sub.push('area '+fmtArea(msAreaM2()));
+    $('msSub').textContent=sub.join(' · ');
+    $('msHint').style.display=n<2?'':'none';
+    $('msArea').setAttribute('aria-pressed',ms.area);
+    navRedraw();
+  }
+  function msOpen(){
+    ms.on=true;$('mspanel').classList.add('show');
+    document.querySelector('.dock').style.display='none';
+    follow=false;$('locBtn').classList.remove('on');msUpdate();
+  }
+  function msClose(){ms={on:false,pts:[],area:false};$('mspanel').classList.remove('show');document.querySelector('.dock').style.display='';navRedraw()}
+  $('msBtn').onclick=()=>{if(ms.on)msClose();else msOpen()};
+  $('msUndo').onclick=()=>{ms.pts.pop();msUpdate()};
+  $('msClear').onclick=()=>{ms.pts=[];msUpdate()};
+  $('msDone').onclick=msClose;
+  $('msArea').onclick=()=>{ms.area=!ms.area;msUpdate()};
+  $('msMe').onclick=()=>{if(!me){toast('Waiting for GPS…');return}const p=meShown();ms.pts.unshift([p[0],p[1]]);msUpdate();toast('Starting from your spot — tap where to measure to')};
+
+  // ---------- Write / draw on the map ----------
+  // Handwriting and sketches stick to the map (saved as map positions), so they stay on the right
+  // spot when you pan, zoom or rotate — a second way to make notes, alongside typed pin notes.
+  const SK_COLORS=['#E0287D','#1C252C','#1E7FD8','#2E9E5B','#F28C28','#FFFFFF'];
+  let sk={strokes:[],undo:[]},skOn=false,skTool='pen',skColor=SK_COLORS[0],skW=6,skHidden=false,skWasShown=false;
+  try{skHidden=localStorage.getItem('onpoint.skHidden')==='1'}catch(e){}
+  idb.get('sketches').then(v=>{if(Array.isArray(v)){sk.strokes=v;setTimeout(navRedraw,0)}}).catch(()=>{});
+  function skHas(){return !skHidden&&sk.strokes.length>0}
+  function skSave(){idb.set('sketches',sk.strokes).catch(()=>{})}
+  function skSvg(pathOf){
+    if(skHidden)return '';
+    let h='';
+    for(const st of sk.strokes){const d=pathOf(st.pts);if(!d)continue;
+      const halo=st.c==='#FFFFFF'?'#1C252C':'#fff';
+      h+=`<path d="${d}" fill="none" stroke="${halo}" stroke-width="${st.w+3}" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>`+
+         `<path d="${d}" fill="none" stroke="${st.c}" stroke-width="${st.w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      if(st.pts.length===1){const p=map.latLngToContainerPoint(st.pts[0]);h+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${st.w/2+1}" fill="${st.c}"/>`}
+    }
+    return h;
+  }
+  const cv=$('skcv');let cx=null,cur=null;
+  function skSize(){const r=devicePixelRatio||1;cv.width=innerWidth*r;cv.height=innerHeight*r;cx=cv.getContext('2d');cx.setTransform(r,0,0,r,0,0)}
+  function skOpen(){
+    skOn=true;skHidden=false;try{localStorage.setItem('onpoint.skHidden','0')}catch(e){}
+    follow=false;$('locBtn').classList.remove('on');
+    skSize();cv.classList.add('show');$('skpanel').classList.add('show');
+    document.querySelector('.dock').style.display='none';document.querySelector('.fab-col').style.display='none';
+    $('skColors').innerHTML=SK_COLORS.map(c=>`<button class="skcol" data-c="${c}" style="background:${c}" aria-label="Color" aria-pressed="${c===skColor}"></button>`).join('');
+    skSetTool(skTool==='pan'?'pen':skTool);navRedraw();
+  }
+  function skClose(){skOn=false;cv.classList.remove('show');$('skpanel').classList.remove('show');
+    document.querySelector('.dock').style.display='';document.querySelector('.fab-col').style.display='';navRedraw()}
+  function skSetTool(t){skTool=t;cv.classList.toggle('pan',t==='pan');
+    $('skTools').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t))}
+  $('skTools').onclick=e=>{const b=e.target.closest('[data-t]');if(b)skSetTool(b.dataset.t)};
+  $('skColors').onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;skColor=b.dataset.c;
+    $('skColors').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));if(skTool!=='pen')skSetTool('pen')};
+  $('skWidth').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;skW=+b.dataset.w;
+    $('skWidth').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b))};
+  $('skUndo').onclick=()=>{const last=sk.undo.pop();if(!last){toast('Nothing to undo');return}
+    if(last.t==='add')sk.strokes=sk.strokes.filter(s=>s!==last.s);else sk.strokes.splice(Math.min(last.i,sk.strokes.length),0,last.s);
+    skSave();navRedraw()};
+  $('skHide').onclick=()=>{skHidden=true;try{localStorage.setItem('onpoint.skHidden','1')}catch(e){}skClose();toast('Drawings hidden — tap ✏ to show them again')};
+  $('skDone').onclick=skClose;
+  $('skBtn').onclick=()=>{if(skOn)skClose();else skOpen()};
+  window.addEventListener('resize',()=>{if(skOn)skSize()});
+  function eraseAt(x,y){
+    const hit=sk.strokes.findIndex(st=>st.pts.some(ll=>{const p=map.latLngToContainerPoint(ll);return Math.hypot(p.x-x,p.y-y)<16}));
+    if(hit>=0){const s0=sk.strokes[hit];sk.strokes.splice(hit,1);sk.undo.push({t:'del',s:s0,i:hit});skSave();navRedraw()}
+  }
+  cv.addEventListener('pointerdown',e=>{
+    if(skTool==='pan')return;e.preventDefault();cv.setPointerCapture(e.pointerId);
+    if(skTool==='erase'){eraseAt(e.clientX,e.clientY);cur={erase:true};return}
+    cur={pts:[[e.clientX,e.clientY]]};
+    cx.clearRect(0,0,innerWidth,innerHeight);cx.strokeStyle=skColor;cx.lineWidth=skW;cx.lineCap='round';cx.lineJoin='round';
+    cx.beginPath();cx.moveTo(e.clientX,e.clientY);cx.lineTo(e.clientX+.1,e.clientY+.1);cx.stroke();
+  });
+  cv.addEventListener('pointermove',e=>{
+    if(!cur)return;
+    if(cur.erase){eraseAt(e.clientX,e.clientY);return}
+    const l=cur.pts[cur.pts.length-1];if(Math.hypot(e.clientX-l[0],e.clientY-l[1])<2)return;
+    cur.pts.push([e.clientX,e.clientY]);cx.beginPath();cx.moveTo(l[0],l[1]);cx.lineTo(e.clientX,e.clientY);cx.stroke();
+  });
+  const skEnd=()=>{
+    if(!cur)return;const c=cur;cur=null;if(c.erase)return;
+    const pts=c.pts.map(q=>{const ll=map.containerPointToLatLng(L.point(q[0],q[1]));return[+ll.lat.toFixed(7),+ll.lng.toFixed(7)]});
+    const st={c:skColor,w:skW,pts,t:Date.now()};sk.strokes.push(st);sk.undo.push({t:'add',s:st});if(sk.undo.length>200)sk.undo.shift();
+    skSave();cx.clearRect(0,0,innerWidth,innerHeight);navRedraw();
+  };
+  cv.addEventListener('pointerup',skEnd);cv.addEventListener('pointercancel',skEnd);
+
+  // ---------- Tracker: record where you go ----------
+  // Breadcrumb trail of your GPS path, saved on the phone as you go (survives closing the app).
+  // Finished tracks can be shown again, renamed, deleted, or exported as GPX.
+  let trk={on:false,paused:false,pts:[],start:0,dist:0,lastSave:0},trkShown=new Map(),trkWake=null;
+  try{const v=JSON.parse(localStorage.getItem('onpoint.trkShown')||'[]');v.forEach(id=>trkShown.set(id,null))}catch(e){}
+  function trkHas(){return !!tEd||(trk.on&&trk.pts.length>0)||[...trkShown.values()].some(Boolean)}
+  function trkSvg(pathOf,P){
+    let h='';
+    const LL=q=>q?[q[0],q[1]]:null;
+    for(const [id,t] of trkShown){if(!t||!t.pts||t.pts.length<2||(tEd&&tEd.id===id))continue;
+      const d=pathOf(t.pts.map(LL));
+      h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/><path d="${d}" fill="none" stroke="#7B4FD1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+      const f=t.pts.find(Boolean);if(f){const a=P([f[0],f[1]]);h+=`<circle cx="${a.x.toFixed(1)}" cy="${a.y.toFixed(1)}" r="5" fill="#2E9E5B" stroke="#fff" stroke-width="2"/>`}
+    }
+    if(tEd)h+=tEdSvg(pathOf,P);
+    if(trk.on&&trk.pts.length){
+      const pts=trk.pts.map(LL);if(!trk.paused&&meShown()&&pts[pts.length-1])pts.push(meShown());
+      if(pts.length>1){const d=pathOf(pts);
+        h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/><path d="${d}" fill="none" stroke="#F28C28" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`}
+      const f0=pts.find(Boolean);if(f0){const a=P(f0);h+=`<circle cx="${a.x.toFixed(1)}" cy="${a.y.toFixed(1)}" r="6" fill="#2E9E5B" stroke="#fff" stroke-width="2"/>`}
+    }
+    return h;
+  }
+  function trkPersist(force){
+    if(!force&&Date.now()-trk.lastSave<15000)return;
+    trk.lastSave=Date.now();
+    idb.set('trk:current',{pts:trk.pts,start:trk.start,dist:trk.dist,paused:trk.paused,appendTo:trk.appendTo||null}).catch(()=>{});
+    try{localStorage.setItem('onpoint.tracking',trk.on?'1':'0')}catch(e){}
+  }
+  function trkOnPos(pos){
+    if(!trk.on||trk.paused)return;
+    const c=pos.coords;if(c.accuracy>40)return;                 // skip poor fixes
+    const p=[+c.latitude.toFixed(6),+c.longitude.toFixed(6),Date.now(),typeof c.altitude==='number'?Math.round(c.altitude):null];
+    const last=trk.pts[trk.pts.length-1];
+    if(last){const d=haversine({lat:last[0],lng:last[1]},{lat:p[0],lng:p[1]});
+      if(d<8&&Date.now()-last[2]<30000)return;                  // ignore jitter while standing still
+      if(d>2000&&Date.now()-last[2]<20000)return;                // ignore a wild GPS jump
+      trk.dist+=d}
+    trk.pts.push(p);trkPersist(false);navRedraw();
+    if(trkSheetOpen())trkStatsFill();
+  }
+  async function trkWakeLock(on){
+    try{if(on&&'wakeLock' in navigator&&!trkWake){trkWake=await navigator.wakeLock.request('screen');trkWake.addEventListener('release',()=>{trkWake=null})}
+      else if(!on&&trkWake){await trkWake.release();trkWake=null}}catch(e){}
+  }
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&trk.on&&!trk.paused)trkWakeLock(true)});
+  function trkBtn(){const b=$('trkBtn');b.classList.toggle('rec',trk.on);b.classList.toggle('paused',trk.on&&trk.paused)}
+  function trkStart(){
+    trk={on:true,paused:false,pts:[],start:Date.now(),dist:0,lastSave:0};
+    if(me&&me.acc<=40)trk.pts.push([+me.lat.toFixed(6),+me.lng.toFixed(6),Date.now(),me.alt!=null?Math.round(me.alt):null]);
+    trkPersist(true);trkBtn();trkWakeLock(true);navRedraw();toast('Tracking — your path is being recorded');
+  }
+  function trkPause(){trk.paused=!trk.paused;trkPersist(true);trkBtn();trkWakeLock(!trk.paused);toast(trk.paused?'Tracking paused':'Tracking resumed')}
+  async function trkStop(){
+    const t=trk;trk={on:false,paused:false,pts:[],start:0,dist:0,lastSave:0};trkBtn();trkWakeLock(false);
+    await idb.del('trk:current').catch(()=>{});try{localStorage.setItem('onpoint.tracking','0')}catch(e){}
+    if(t.appendTo){
+      const list=(await idb.get('tracks').catch(()=>null))||[];const rec=list.find(x=>x.id===t.appendTo);
+      if(rec){await idb.set('trk:'+rec.id,t.pts).catch(()=>{});Object.assign(rec,trkMeta(t.pts));await idb.set('tracks',list).catch(()=>{});
+        trkShown.set(rec.id,{pts:t.pts});trkSaveShown();navRedraw();toast(`Updated ${rec.name} · ${fmtDist(rec.dist)}`);return rec}
+    }
+    if(t.pts.filter(Boolean).length<2){toast('Track too short to save');navRedraw();return null}
+    const id='t'+t.start.toString(36),end=t.pts.filter(Boolean).pop()[2];
+    const name='Track '+new Date(t.start).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    const rec={id,name,start:t.start,end,dist:t.dist,n:t.pts.length};
+    await idb.set('trk:'+id,t.pts).catch(()=>{});
+    const list=(await idb.get('tracks').catch(()=>null))||[];list.unshift(rec);await idb.set('tracks',list).catch(()=>{});
+    trkShown.set(id,{pts:t.pts});trkSaveShown();navRedraw();
+    toast(`Saved ${name} · ${fmtDist(t.dist)}`);
+    return rec;
+  }
+  function trkMeta(pts){
+    let dist=0,prev=null,first=null,last=null,n=0;
+    for(const q of pts){if(!q){prev=null;continue}n++;if(!first)first=q;last=q;
+      if(prev)dist+=haversine({lat:prev[0],lng:prev[1]},{lat:q[0],lng:q[1]});prev=q}
+    return {dist,n,start:(first&&first[2])||Date.now(),end:(last&&last[2])||Date.now()};
+  }
+  // ---- Track editor: remove a stretch, trim, add points, join tracks, continue recording ----
+  let tEd=null;
+  function tEdSvg(pathOf,P){
+    const pts=tEd.pts,LL=q=>q?[q[0],q[1]]:null;let h='';
+    const d=pathOf(pts.map(LL));
+    h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/><path d="${d}" fill="none" stroke="#7B4FD1" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
+    if(tEd.mode==='cut'&&pts.length>1){
+      const a=Math.min(tEd.a,tEd.b),b=Math.max(tEd.a,tEd.b);
+      const sel=pathOf(pts.slice(a,b+1).map(LL));
+      if(sel)h+=`<path d="${sel}" fill="none" stroke="#B3261E" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`;
+      [a,b].forEach((i,k)=>{const q=pts[i]||pts.slice(0,i).reverse().find(Boolean);if(!q)return;const c=P([q[0],q[1]]);
+        h+=`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="10" fill="#fff" stroke="#B3261E" stroke-width="4"/><text x="${c.x.toFixed(1)}" y="${(c.y+4).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="#B3261E" font-family="Barlow,system-ui,sans-serif">${k?'B':'A'}</text>`});
+    }else{
+      const f=pts.find(Boolean),l=[...pts].reverse().find(Boolean);
+      if(f){const c=P([f[0],f[1]]);h+=`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="7" fill="#2E9E5B" stroke="#fff" stroke-width="2"/>`}
+      if(l){const c=P([l[0],l[1]]);h+=`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="7" fill="#B3261E" stroke="#fff" stroke-width="2"/>`}
+    }
+    return h;
+  }
+  function tEdCum(){const c=[0];let prev=null,acc=0;
+    tEd.pts.forEach((q,i)=>{if(i===0){prev=q;return}if(q&&prev)acc+=haversine({lat:prev[0],lng:prev[1]},{lat:q[0],lng:q[1]});c.push(acc);prev=q||prev});return c}
+  function tEdRefresh(){
+    if(!tEd)return;
+    const n=tEd.pts.length,max=Math.max(0,n-1);
+    $('teA').max=max;$('teB').max=max;
+    tEd.a=Math.min(tEd.a,max);tEd.b=Math.min(tEd.b,max);
+    $('teA').value=tEd.a;$('teB').value=tEd.b;
+    const cum=tEdCum();
+    $('teAv').textContent=`· ${fmtDist(cum[tEd.a]||0)} in`;$('teBv').textContent=`· ${fmtDist(cum[tEd.b]||0)} in`;
+    const m=trkMeta(tEd.pts);
+    $('teInfo').textContent=`${fmtDist(m.dist)} · ${m.n} points${tEd.pts.includes(null)?' · has gaps':''}`;
+    $('teMode').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===tEd.mode));
+    $('teCut').style.display=tEd.mode==='cut'?'':'none';$('teAdd').style.display=tEd.mode==='add'?'':'none';
+    $('teEnd').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.e===tEd.end));
+    $('teUndo').disabled=!tEd.hist.length;$('teUndo').style.opacity=tEd.hist.length?1:.45;
+    navRedraw();
+  }
+  function tEdPush(){tEd.hist.push(JSON.stringify(tEd.pts));if(tEd.hist.length>40)tEd.hist.shift()}
+  // tidy: no gaps at the ends or doubled gaps
+  function tEdClean(pts){const out=[];for(const q of pts){if(!q&&(!out.length||!out[out.length-1]))continue;out.push(q)}while(out.length&&!out[out.length-1])out.pop();return out}
+  async function tEdOpen(rec){
+    if(trk.on){toast('Stop the current recording first');return}
+    const pts=await idb.get('trk:'+rec.id).catch(()=>null);if(!pts){toast('Couldn’t open that track');return}
+    tEd={id:rec.id,rec,pts:pts.slice(),a:0,b:Math.max(0,Math.floor(pts.length/3)),mode:'cut',end:'end',hist:[]};
+    $('teName').value=rec.name;
+    $('tepanel').classList.add('show');document.querySelector('.dock').style.display='none';
+    const list=((await idb.get('tracks').catch(()=>null))||[]).filter(x=>x.id!==rec.id);
+    $('teJoinSel').innerHTML=list.length?list.map(t=>`<option value="${t.id}">${esc(t.name)} · ${fmtDist(t.dist)}</option>`).join(''):'<option value="">No other tracks</option>';
+    follow=false;$('locBtn').classList.remove('on');
+    const ok=pts.filter(Boolean);if(ok.length)map.fitBounds(L.latLngBounds(ok.map(q=>[q[0],q[1]])),{paddingTopLeft:[30,90],paddingBottomRight:[30,Math.round(innerHeight*.5)]});
+    tEdRefresh();
+  }
+  function tEdClose(){tEd=null;$('tepanel').classList.remove('show');document.querySelector('.dock').style.display='';navRedraw()}
+  $('teMode').onclick=e=>{const b=e.target.closest('[data-m]');if(!b||!tEd)return;tEd.mode=b.dataset.m;tEdRefresh()};
+  $('teEnd').onclick=e=>{const b=e.target.closest('[data-e]');if(!b||!tEd)return;tEd.end=b.dataset.e;tEdRefresh()};
+  $('teA').oninput=e=>{tEd.a=+e.target.value;tEdRefresh()};
+  $('teB').oninput=e=>{tEd.b=+e.target.value;tEdRefresh()};
+  $('teDel').onclick=()=>{
+    const a=Math.min(tEd.a,tEd.b),b=Math.max(tEd.a,tEd.b);
+    if(b-a+1>=tEd.pts.length){toast('That would remove the whole track');return}
+    tEdPush();
+    // keep both sides, with a gap where the removed stretch was (no fake straight line across it)
+    const before=tEd.pts.slice(0,a),after=tEd.pts.slice(b+1);
+    tEd.pts=tEdClean([...before,...(before.length&&after.length?[null]:[]),...after]);
+    tEd.a=Math.max(0,a-1);tEd.b=Math.min(tEd.pts.length-1,a);toast('Removed');tEdRefresh();
+  };
+  $('teKeep').onclick=()=>{
+    const a=Math.min(tEd.a,tEd.b),b=Math.max(tEd.a,tEd.b);
+    if(b-a<1){toast('Pick a longer stretch first');return}
+    tEdPush();tEd.pts=tEdClean(tEd.pts.slice(a,b+1));tEd.a=0;tEd.b=tEd.pts.length-1;toast('Trimmed');tEdRefresh();
+  };
+  function tEdAddPoint(lat,lng){
+    tEdPush();const q=[+lat.toFixed(6),+lng.toFixed(6),0,null];
+    if(tEd.end==='end')tEd.pts.push(q);else tEd.pts.unshift(q);
+    tEdRefresh();
+  }
+  $('teJoin').onclick=async()=>{
+    const id=$('teJoinSel').value;if(!id)return;
+    const other=await idb.get('trk:'+id).catch(()=>null);if(!other||!other.length)return;
+    tEdPush();
+    const endPt=[...tEd.pts].reverse().find(Boolean),startO=other.find(Boolean);
+    const gap=endPt&&startO?haversine({lat:endPt[0],lng:endPt[1]},{lat:startO[0],lng:startO[1]}):0;
+    tEd.pts=tEdClean([...tEd.pts,...(gap>100?[null]:[]),...other]);
+    toast(gap>100?'Joined (with a gap between them)':'Joined');tEdRefresh();
+  };
+  $('teRec').onclick=async()=>{
+    if(!me){toast('Waiting for GPS…');return}
+    const rec=tEd.rec;rec.name=$('teName').value.trim()||rec.name;
+    const pts=tEd.pts.slice();await tEdSaveNow();
+    const l=[...pts].reverse().find(Boolean),gap=l?haversine({lat:l[0],lng:l[1]},me):0;
+    tEdClose();
+    trk={on:true,paused:false,pts:gap>150?[...pts,null]:pts,start:rec.start||Date.now(),dist:trkMeta(pts).dist,lastSave:0,appendTo:rec.id};
+    trkShown.delete(rec.id);trkSaveShown();
+    trkPersist(true);trkBtn();trkWakeLock(true);navRedraw();toast(`Recording onto ${rec.name}`);
+  };
+  $('teUndo').onclick=()=>{if(!tEd||!tEd.hist.length)return;tEd.pts=JSON.parse(tEd.hist.pop());tEdRefresh()};
+  $('teCancel').onclick=()=>{if(tEd&&tEd.hist.length&&!confirm('Discard your changes to this track?'))return;tEdClose()};
+  async function tEdSaveNow(){
+    const pts=tEdClean(tEd.pts);if(pts.filter(Boolean).length<2){toast('A track needs at least 2 points');return false}
+    const list=(await idb.get('tracks').catch(()=>null))||[];const rec=list.find(x=>x.id===tEd.id);if(!rec)return false;
+    rec.name=$('teName').value.trim()||rec.name;Object.assign(rec,trkMeta(pts));
+    await idb.set('trk:'+rec.id,pts).catch(()=>{});await idb.set('tracks',list).catch(()=>{});
+    trkShown.set(rec.id,{pts});trkSaveShown();tEd.rec=rec;return true;
+  }
+  $('teSave').onclick=async()=>{if(await tEdSaveNow()){toast('Track saved');tEdClose()}};
+
+  function trkSaveShown(){try{localStorage.setItem('onpoint.trkShown',JSON.stringify([...trkShown.keys()]))}catch(e){}}
+  function fmtElapsed(ms){const m=Math.floor(ms/60000),h=Math.floor(m/60);return h?`${h}h ${m%60}m`:`${m} min`}
+  function trkStatsFill(){
+    const el=$('trkStats');if(!el)return;
+    const el2=Date.now()-trk.start,mph=trk.dist/1609.34/Math.max(el2/3600000,1/60);
+    el.innerHTML=`<div><small>Distance</small><b>${fmtDist(trk.dist)}</b></div><div><small>Time</small><b>${fmtElapsed(el2)}</b></div><div><small>Avg speed</small><b>${trk.dist>30?mph.toFixed(1)+' mph':'—'}</b></div>`;
+  }
+  function trkSheetOpen(){return !!$('trkStats')}
+  async function showTracker(){
+    const list=(await idb.get('tracks').catch(()=>null))||[];
+    const rows=list.map((t,i)=>`<div class="opt" style="cursor:default;gap:8px">
+      <button class="mk" data-show="${t.id}" aria-label="Show on map" style="margin:0;border-radius:7px;${trkShown.has(t.id)?'background:#7B4FD1;border-color:#7B4FD1':''}"></button>
+      <span style="min-width:0"><span class="ot">${esc(t.name)}</span><span class="od">${fmtDist(t.dist)} · ${fmtElapsed(t.end-t.start)} · ${new Date(t.start).toLocaleDateString()}</span></span>
+      <span style="margin-left:auto;display:flex;gap:6px"><button class="b-ghost" data-edit="${i}" style="border:0;border-radius:9px;padding:8px 10px;font-weight:600">✎</button><button class="b-ghost" data-gpx="${i}" style="border:0;border-radius:9px;padding:8px 10px;font-weight:600">GPX</button><button class="b-danger" data-del="${i}" style="border-radius:9px;padding:8px 10px;font-weight:600">✕</button></span></div>`).join('');
+    openSheet(`<h2 id="sheetTitle">Tracker</h2>
+      ${trk.on?`<div class="coords">${trk.paused?'Paused':'Recording'} since ${new Date(trk.start).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</div>
+        <div class="trkstats" id="trkStats"></div>
+        <div class="row" style="margin-top:4px"><button class="b-ghost" id="tkPause">${trk.paused?'▶ Resume':'❚❚ Pause'}</button><button class="b-flag" id="tkStop">■ Stop & save</button></div>`
+       :`<p class="fine" style="font-size:15px;margin-top:4px">Records your path as an orange line on the map. Keep the app open — the screen stays on while tracking.</p>
+        <div class="row"><button class="b-flag" id="tkGo">● Start tracking</button></div>`}
+      <div class="sec">Saved tracks</div>
+      ${list.length?`<div id="tkList">${rows}</div><p class="fine">Tick a track to show it on the map (purple). Tap its name to zoom to it.</p>`:'<p class="fine">None yet.</p>'}
+      <div class="row"><button class="b-ghost" id="tkClose">Close</button></div>`);
+    if(trk.on){trkStatsFill();$('tkPause').onclick=()=>{trkPause();showTracker()};
+      $('tkStop').onclick=async()=>{await trkStop();showTracker()}}
+    else $('tkGo').onclick=()=>{trkStart();closeSheet()};
+    $('tkClose').onclick=closeSheet;
+    const L2=$('tkList');
+    if(L2)L2.onclick=async e=>{
+      const sh=e.target.closest('[data-show]'),gx=e.target.closest('[data-gpx]'),dl=e.target.closest('[data-del]'),ed=e.target.closest('[data-edit]');
+      if(ed){closeSheet();tEdOpen(list[+ed.dataset.edit]);return}
+      if(sh){const id=sh.dataset.show;
+        if(trkShown.has(id)){trkShown.delete(id)}else{const pts=await idb.get('trk:'+id).catch(()=>null);if(pts)trkShown.set(id,{pts})}
+        trkSaveShown();navRedraw();showTracker();return}
+      if(gx){const t=list[+gx.dataset.gpx];const pts=await idb.get('trk:'+t.id).catch(()=>null);if(pts)trkGpx(t,pts);return}
+      if(dl){const t=list[+dl.dataset.del];if(!confirm(`Delete ${t.name}?`))return;
+        list.splice(+dl.dataset.del,1);await idb.set('tracks',list).catch(()=>{});await idb.del('trk:'+t.id).catch(()=>{});
+        trkShown.delete(t.id);trkSaveShown();navRedraw();showTracker();return}
+      const row=e.target.closest('.opt');if(row){const id=row.querySelector('[data-show]').dataset.show;
+        let pts=trkShown.get(id)&&trkShown.get(id).pts;if(!pts){pts=await idb.get('trk:'+id).catch(()=>null);if(pts){trkShown.set(id,{pts});trkSaveShown()}}
+        if(pts&&pts.length){closeSheet();follow=false;$('locBtn').classList.remove('on');
+          map.fitBounds(L.latLngBounds(pts.filter(Boolean).map(q=>[q[0],q[1]])),{padding:[40,140]});navRedraw()}}
+    };
+  }
+  function trkGpx(t,pts){
+    const segs=[[]];pts.forEach(q=>{if(!q){if(segs[segs.length-1].length)segs.push([])}else segs[segs.length-1].push(q)});
+    const x=segs.filter(g=>g.length).map(g=>'<trkseg>\n'+g.map(q=>`<trkpt lat="${q[0]}" lon="${q[1]}">${q[3]!=null?`<ele>${q[3]}</ele>`:''}${q[2]?`<time>${new Date(q[2]).toISOString()}</time>`:''}</trkpt>`).join('\n')+'\n</trkseg>').join('\n');
+    const gpx=`<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="On Point" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>${esc(t.name)}</name>\n${x}\n</trk></gpx>`;
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([gpx],{type:'application/gpx+xml'}));
+    a.download=t.name.replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-')+'.gpx';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),3000);toast('GPX exported');
+  }
+  $('trkBtn').onclick=showTracker;
+  // Pick up where you left off if the app was closed while tracking
+  setTimeout(async()=>{
+    for(const id of [...trkShown.keys()]){const pts=await idb.get('trk:'+id).catch(()=>null);if(pts)trkShown.set(id,{pts});else trkShown.delete(id)}
+    let was='0';try{was=localStorage.getItem('onpoint.tracking')||'0'}catch(e){}
+    if(was==='1'){const c=await idb.get('trk:current').catch(()=>null);
+      if(c){trk={on:true,paused:!!c.paused,pts:c.pts||[],start:c.start||Date.now(),dist:c.dist||0,lastSave:0,appendTo:c.appendTo||null};trkBtn();if(!trk.paused)trkWakeLock(true);toast('Tracking resumed')}}
+    navRedraw();
+  },0);
+  setInterval(()=>{if(trk.on){trkPersist(false);if(trkSheetOpen())trkStatsFill()}},10000);
+
   // ---------- Background prefetch ----------
   // Quietly keeps the camera labels for where you are loaded (and saved on the phone),
   // so the camera view is ready the moment you open it. Re-checks as you move.
@@ -1342,11 +2070,13 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   const SVGNS='http://www.w3.org/2000/svg';
   function navDraw(){
     navRaf=0;const svg=$('navSvg');
-    if(!nav){svg.innerHTML='';return}
+    const hasT=trkHas()||skHas()||msHas()||propHas();
+    if(!nav&&!hasT){svg.innerHTML='';return}
     const P=ll=>map.latLngToContainerPoint(ll);
-    const pathOf=pts=>{let d='',last=null;for(const ll of pts){const p=P(ll);
-        if(last&&Math.abs(p.x-last.x)+Math.abs(p.y-last.y)<1.5)continue;d+=(d?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);last=p}return d};
-    let h='';
+    const pathOf=pts=>{let d='',last=null;for(const ll of pts){if(!ll){last=null;continue}const p=P(ll);
+        if(last&&Math.abs(p.x-last.x)+Math.abs(p.y-last.y)<1.5)continue;d+=(last?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);last=p}return d};
+    let h=hasT?propSvg(pathOf)+skSvg(pathOf)+trkSvg(pathOf,P)+msSvg(pathOf,P):'';
+    if(!nav){svg.innerHTML=h;return}
     if(navRoutePts&&navRoutePts.length>1){
       const d=pathOf(navRoutePts);
       h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
@@ -1355,7 +2085,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     }
     const t=P([nav.lat,nav.lng]);
     if(me){
-      const m=P([me.lat,me.lng]),dx=t.x-m.x,dy=t.y-m.y,len=Math.hypot(dx,dy)||1;
+      const m=P(meShown()),dx=t.x-m.x,dy=t.y-m.y,len=Math.hypot(dx,dy)||1;
       const sx=m.x+dx/len*Math.min(16,len/2),sy=m.y+dy/len*Math.min(16,len/2);   // start just outside your arrow
       h+=`<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${t.x.toFixed(1)}" y2="${t.y.toFixed(1)}" stroke="#24313B" stroke-width="3" stroke-dasharray="6 8" stroke-linecap="round"/>`;
       const label=fmtDist(haversine(me,nav)),mx=(m.x+t.x)/2,my=(m.y+t.y)/2,w=label.length*7.6+16;
@@ -1365,9 +2095,9 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     h+=`<circle cx="${t.x.toFixed(1)}" cy="${t.y.toFixed(1)}" r="16" fill="#fff" opacity=".9"/><circle cx="${t.x.toFixed(1)}" cy="${t.y.toFixed(1)}" r="12" fill="rgba(224,40,125,.25)" stroke="#E0287D" stroke-width="4"/>`;
     svg.innerHTML=h;
   }
-  function navRedraw(){if(nav&&!navRaf)navRaf=requestAnimationFrame(navDraw)}
+  function navRedraw(){if((nav||trkHas()||skHas()||skWasShown||msHas()||msWas||propHas()||propWas)&&!navRaf){skWasShown=skHas();msWas=msHas();propWas=propHas();navRaf=requestAnimationFrame(navDraw)}}
   map.on('move zoom rotate viewreset resize moveend zoomend rotateend',navRedraw);
-  map.on('zoomanim',()=>{if(nav)$('navSvg').style.opacity=0});
+  map.on('zoomanim',()=>{if(nav||trkHas()||skHas()||msHas())$('navSvg').style.opacity=0});
   map.on('zoomend',()=>{$('navSvg').style.opacity=1});
   function startNav(t){
     nav=t;navRouteFrom=null;navRoutePts=null;navGap=null;
@@ -1410,14 +2140,14 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     }catch(e){if(seq===navReq)$('navRoute').textContent='Couldn’t route'}
   }
   function endNav(){
-    nav=null;navReq++;navRoutePts=null;navGap=null;$('navSvg').innerHTML='';
+    nav=null;navReq++;navRoutePts=null;navGap=null;$('navSvg').innerHTML='';navRedraw();
     $('navcard').classList.remove('show');document.querySelector('.dock').style.display='';
   }
   $('navMode').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;navMode=b.dataset.m;try{localStorage.setItem('onpoint.navMode',navMode)}catch(_){}
     $('navMode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));navRoute()};
   $('navEnd').onclick=endNav;
   $('navCam').onclick=()=>{endNav();openAR()};
-  $('navPin').onclick=()=>{if(!nav)return;const t=nav;newPinAt(t.lat,t.lng);setTimeout(()=>{const f=$('fTitle');if(f)f.value=t.name},30)};
+  $('navPin').onclick=()=>{if(!nav)return;newPinAt(nav.lat,nav.lng,nav.name)};
   $('navG').onclick=()=>{if(nav)openGoogleMaps(nav.lat,nav.lng,navMode)};
   $('navA').onclick=()=>{if(nav)openAppleMaps(nav.lat,nav.lng,navMode)};
 
@@ -1431,7 +2161,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       <div class="row"><button class="b-primary" id="aMap">Show on map</button><button class="b-flag" id="aPin">Pin it</button></div>
       <div class="row" style="margin-top:10px"><button class="b-ghost" id="aNav">Directions</button><button class="b-ghost" id="aBack">Back to camera</button></div>`);
     $('aMap').onclick=()=>{closeSheet();follow=false;$('locBtn').classList.remove('on');map.setView([p.lat,p.lng],14)};
-    $('aPin').onclick=()=>{newPinAt(p.lat,p.lng);setTimeout(()=>{const f=$('fTitle');if(f)f.value=p.name},30)};
+    $('aPin').onclick=()=>{newPinAt(p.lat,p.lng,p.name)};
     $('aNav').onclick=()=>{closeSheet();startNav({name:p.name,sub:p.sub,icon:p.icon||AR_TYPES[p.type].icon,lat:p.lat,lng:p.lng,ele:p.ele})};
     $('aBack').onclick=()=>{closeSheet();openAR()};
   }
@@ -1755,7 +2485,10 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   window.addEventListener('online',()=>toast('Back online'));
 
   // ---------- actions ----------
-  map.on('click',e=>{ if(dlSelecting){if(dlMode==='trail'){dlTrail.push([+e.latlng.lat.toFixed(6),+e.latlng.lng.toFixed(6)]);redrawEdit()}return}
+  map.on('click',e=>{ if(prOn){propLookup(e.latlng.lat,e.latlng.lng);return}
+    if(ms.on){ms.pts.push([+e.latlng.lat.toFixed(7),+e.latlng.lng.toFixed(7)]);msUpdate();return}
+    if(tEd){if(tEd.mode==='add')tEdAddPoint(e.latlng.lat,e.latlng.lng);return}
+    if(dlSelecting){if(dlMode==='trail'){dlTrail.push([+e.latlng.lat.toFixed(6),+e.latlng.lng.toFixed(6)]);redrawEdit()}return}
     if($('sheet').classList.contains('show')){closeSheet();return} $('hint').style.opacity=0; newPinAt(e.latlng.lat,e.latlng.lng); });
   $('pinHereBtn').onclick=()=>{ if(!me){toast('No GPS fix yet — tap the map to pin a spot instead');return} newPinAt(me.lat,me.lng); };
   $('listBtn').onclick=showList;
