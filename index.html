@@ -294,10 +294,12 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <div class="row" style="margin-top:6px"><button class="b-ghost" id="prKey">Regrid key</button><button class="b-primary" id="prDone">Done</button></div>
 </div>
 <div class="dlpanel" id="mspanel" role="dialog" aria-label="Measure" style="padding-top:10px">
-  <div style="display:flex;align-items:baseline;gap:10px"><b id="msTotal" style="font:700 30px/1 'Barlow Condensed','Arial Narrow',sans-serif">0 ft</b><span id="msSub" class="dlp-hint" style="margin:0"></span></div>
-  <div class="dlp-hint" id="msHint">Tap the map to add points. Each stretch shows its own distance.</div>
+  <div style="display:flex;align-items:center;gap:10px"><div style="min-width:0"><b id="msTotal" style="font:700 30px/1 'Barlow Condensed','Arial Narrow',sans-serif">0 ft</b><div id="msSub" class="dlp-hint" style="margin:2px 0 0"></div></div>
+    <button class="b-ghost" id="msUndo" style="margin-left:auto;flex:none;height:44px;padding:0 16px;border:0;border-radius:12px;font-weight:600">↶ Undo</button></div>
+  <div class="dlp-hint" id="msHint">Tap the map to add corners. Tap back on the first (green) corner to close the shape. Drag any corner to adjust it.</div>
+  <div id="msSideList" style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0"></div>
   <div class="seg"><button id="msMe">📍 Start from me</button><button id="msArea" aria-pressed="false">▱ Area</button></div>
-  <div class="row" style="margin-top:6px"><button class="b-ghost" id="msUndo">↶ Undo</button><button class="b-ghost" id="msClear">Clear</button><button class="b-primary" id="msDone">Done</button></div>
+  <div class="row" style="margin-top:6px"><button class="b-ghost" id="msClear">Clear</button><button class="b-primary" id="msDone">Done</button></div>
 </div>
 <canvas class="skcv" id="skcv"></canvas>
 <div class="dlpanel" id="skpanel" role="dialog" aria-label="Draw on the map" style="padding-top:10px">
@@ -385,9 +387,23 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   const USGS=n=>`https://basemap.nationalmap.gov/arcgis/rest/services/${n}/MapServer/tile/{z}/{y}/{x}`;
   let usgsCors=true;try{usgsCors=localStorage.getItem('onpoint.usgsCors')!=='0'}catch(e){}
   const usgsOpts=()=>Object.assign({maxZoom:20,maxNativeZoom:16,attribution:'USGS The National Map'},usgsCors?{crossOrigin:'anonymous'}:{});
+  const ESRI=n=>`https://server.arcgisonline.com/ArcGIS/rest/services/${n}/MapServer/tile/{z}/{y}/{x}`;
+  const BLANK='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
   const BASES={
-    street:{name:'Street',desc:'Roads, trails and place names',layer:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'})},
-    sat:{name:'Satellite',desc:'Aerial photos',layer:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:17,attribution:'Imagery © Esri'})},
+    // Sharp street map: CARTO "Voyager" — double-resolution tiles on iPhone screens, so text and roads are crisp
+    clear:{name:'Clear streets',desc:'Sharp, easy-to-read roads and names (best on phone screens)',layer:L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{crossOrigin:'anonymous',subdomains:'abcd',maxZoom:20,maxNativeZoom:20,attribution:'© OpenStreetMap © CARTO'})},
+    // Satellite HD: the sharpest photos available for each spot (up to zoom 19), falling back to the
+    // standard photos where HD doesn't exist, with roads and place names drawn on top
+    sat:{name:'Satellite HD + roads',desc:'Sharpest aerial photos, with road and place names on top',layer:L.layerGroup([
+      L.tileLayer(ESRI('World_Imagery'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:17,attribution:'Imagery © Esri, Maxar'}),
+      L.tileLayer(ESRI('World_Imagery')+'?blankTile=false',{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:19,errorTileUrl:BLANK}),
+      L.tileLayer(ESRI('Reference/World_Transportation'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:19,opacity:.85}),
+      L.tileLayer(ESRI('Reference/World_Boundaries_and_Places'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:19})])},
+    satplain:{name:'Satellite (photos only)',desc:'Sharpest aerial photos with nothing drawn on top',layer:L.layerGroup([
+      L.tileLayer(ESRI('World_Imagery'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:17,attribution:'Imagery © Esri, Maxar'}),
+      L.tileLayer(ESRI('World_Imagery')+'?blankTile=false',{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:19,errorTileUrl:BLANK})])},
+    esritopo:{name:'Topo (detailed)',desc:'Clear topo map with roads, buildings, creeks and contour lines',layer:L.tileLayer(ESRI('World_Topo_Map'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:19,attribution:'© Esri'})},
+    street:{name:'OpenStreetMap',desc:'The classic community map — lots of detail, smaller text',layer:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'})},
     topo:{name:'Topo',desc:'Terrain contour lines, shorelines and creeks',layer:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:17,attribution:'© OpenTopoMap, OpenStreetMap'})},
     usgs:{name:'USGS Topo ⬇',desc:'Government topo map with roads, creeks & names — can be downloaded for offline',layer:L.tileLayer(USGS('USGSTopo'),usgsOpts())},
     usgsimg:{name:'USGS Satellite + names ⬇',desc:'Aerial photos with road & place names — can be downloaded for offline',layer:L.tileLayer(USGS('USGSImageryTopo'),usgsOpts())},
@@ -485,6 +501,10 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 
   // Property lines: Regrid parcel tiles (paid service, needs your key)
   let regridKey='';try{regridKey=localStorage.getItem('onpoint.regrid')||''}catch(e){}
+  // Owner names: a switch in Layers; the drawing and loading happen further down
+  const ownLayer=L.layerGroup();
+  ownLayer.on('add',()=>setTimeout(()=>ownSwitch(true),0));
+  ownLayer.on('remove',()=>setTimeout(()=>ownSwitch(false),0));
   const parcelTiles=L.tileLayer('',{maxZoom:20,maxNativeZoom:20,minZoom:10,zIndex:8,attribution:'Parcels © Regrid'});
   function parcelUrl(){return `https://tiles.regrid.com/api/v1/parcels/{z}/{x}/{y}.png?token=${encodeURIComponent(regridKey)}`}
   if(regridKey)parcelTiles.setUrl(parcelUrl(),true);
@@ -495,6 +515,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       layer:L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:18,zIndex:6,attribution:'© OpenSeaMap'})},
     sst:{name:'Ocean water temp',desc:'NASA daily sea-surface temperature, about 1 km detail',temp:'Ocean water temp',
       layer:L.tileLayer(gibs('GHRSST_L4_MUR_Sea_Surface_Temperature'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'SST © NASA GIBS'})},
+    owners:{name:'Owner names',desc:'Writes who owns each property right on the map — loads by itself as you look around (Regrid key; uses your allowance)',layer:ownLayer},
     parcels:{name:'Property lines',desc:'Property boundaries (Regrid — needs your key). Tap a property with 🏠 in the ✏ tools to see the owner',layer:parcelTiles},
     towers:{name:'Cell towers',desc:'FCC-licensed cellular sites near you. Not every carrier site is listed. Zoom in to load',layer:towers},
     air:{name:'Air temperature (live)',desc:'Current temperature across the map, updated every 15 min',layer:airLayer},
@@ -502,8 +523,9 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       layer:L.tileLayer(gibs('MODIS_Terra_Land_Surface_Temp_Day'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'LST © NASA GIBS'})}
   };
   const PREF='onpoint.layers.v1';
-  let layerState={base:'street',on:[]};
+  let layerState={base:'clear',on:[]};
   try{const v=JSON.parse(localStorage.getItem(PREF));if(v&&BASES[v.base])layerState={base:v.base,on:(v.on||[]).filter(k=>OVERLAYS[k])}}catch(e){}
+  try{if(localStorage.getItem('onpoint.sharpMaps')!=='1'){localStorage.setItem('onpoint.sharpMaps','1');if(layerState.base==='street')layerState.base='clear'}}catch(e){}
   function applyLayers(){
     Object.entries(BASES).forEach(([k,b])=>{if(k===layerState.base){if(!map.hasLayer(b.layer))b.layer.addTo(map)}else map.removeLayer(b.layer)});
     Object.entries(OVERLAYS).forEach(([k,o])=>{if(layerState.on.includes(k)){if(!map.hasLayer(o.layer))o.layer.addTo(map)}else map.removeLayer(o.layer)});
@@ -528,11 +550,11 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 43 (property lookup)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 49 (drag corners)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
-      if(k==='parcels'&&!regridKey&&!layerState.on.includes('parcels')){closeSheet();showRegridKey(true);return}
+      if((k==='parcels'||k==='owners')&&!regridKey&&!layerState.on.includes(k)){closeSheet();showRegridKey(true);return}
       layerState.on=layerState.on.includes(k)?layerState.on.filter(x=>x!==k):[...layerState.on,k];applyLayers();
       b.setAttribute('aria-pressed',layerState.on.includes(k));
       if(layerState.on.includes(k)&&(OVERLAYS[k].layer.options||{}).maxNativeZoom===7&&map.getZoom()>11)toast('Zoom out to see the temperature pattern');};
@@ -1435,7 +1457,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v43 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v49 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1561,6 +1583,18 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     $('wxC').onclick=closeSheet;$('wxR').onclick=async()=>{await wxLoad(true);closeSheet();$('wx').click()};
   };
 
+  // ---------- Keep the right-side buttons clear of bottom panels ----------
+  function liftFabs(){
+    let h=0;
+    document.querySelectorAll('.dlpanel.show,.navcard.show').forEach(el=>{h=Math.max(h,el.getBoundingClientRect().height)});
+    const fc=document.querySelector('.fab-col');
+    fc.style.bottom=h?`${Math.round(h+12)}px`:'';
+    // if there isn't room above a tall panel, tuck them away
+    fc.style.visibility=(h&&innerHeight-h<330)?'hidden':'';
+  }
+  new MutationObserver(liftFabs).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']});
+  window.addEventListener('resize',liftFabs);
+
   // ---------- Pencil button (bottom bar): pick Draw or Measure ----------
   $('toolBtn').onclick=()=>{
     openSheet(`<h2 id="sheetTitle">Tools</h2>
@@ -1616,8 +1650,8 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   async function propLookup(lat,lng){
     prShape=null;navRedraw();
     openSheet(`<h2 id="sheetTitle">🏠 Looking up…</h2><p class="fine">${lat.toFixed(5)}, ${lng.toFixed(5)}</p>`);
-    let rg=null,rgErr='';
-    if(regridKey&&navigator.onLine){
+    let rg=ownFind(lat,lng),rgErr='';
+    if(!rg&&regridKey&&navigator.onLine){
       try{const r=await fetch(`https://app.regrid.com/api/v2/parcels/point?lat=${lat}&lon=${lng}&radius=5&return_geometry=true&token=${encodeURIComponent(regridKey)}`);
         if(r.status===401||r.status===403)rgErr='Your Regrid key was refused (expired trial or wrong key).';
         else{const d=await r.json();const fc=(d&&d.parcels)||d;rg=fc&&fc.features&&fc.features[0]||null;if(!rg)rgErr='No property record found at this spot.'}
@@ -1651,19 +1685,113 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     $('prPin').onclick=()=>{const v=rg?regridRows(rg):{};newPinAt(lat,lng,v.owner?('Property – '+v.owner):'');closeSheet()};
     if($('prAdd'))$('prAdd').onclick=()=>showRegridKey(false);
   }
+  // ---- Owner names on the map, automatically ----
+  // With "Owner names" on, the app loads the properties around wherever you're looking (zoomed in
+  // close), writes each owner's name inside their property, and saves them on the phone — so an area
+  // only costs once and still shows with no signal.
+  const OWN_CELL=0.004;                                    // load in squares about a quarter mile across
+  let own=new Map(),ownCells=new Set(),ownOn=false,ownWas=false,ownBusy=false,ownTimer=null,ownSaveT=null,ownRefused=false;
+  idb.get('parcelCache').then(v=>{if(Array.isArray(v)){v.forEach(x=>own.set(x.id,x));navRedraw()}}).catch(()=>{});
+  idb.get('parcelCells').then(v=>{if(Array.isArray(v))v.forEach(c=>ownCells.add(c))}).catch(()=>{});
+  function rgUsed(){try{const v=JSON.parse(localStorage.getItem('onpoint.rgUsed')||'{}'),m=new Date().toISOString().slice(0,7);return v.m===m?v.n:0}catch(e){return 0}}
+  function rgCount(n){try{const m=new Date().toISOString().slice(0,7);localStorage.setItem('onpoint.rgUsed',JSON.stringify({m,n:rgUsed()+n}))}catch(e){}}
+  function ownSwitch(on){
+    ownOn=on;
+    if(on){
+      if(!regridKey){layerState.on=layerState.on.filter(k=>k!=='owners');applyLayers();return}
+      let told='1';try{told=localStorage.getItem('onpoint.ownTold')}catch(e){}
+      if(told!=='1'){toast('Owner names load by themselves as you zoom in — uses your Regrid allowance');try{localStorage.setItem('onpoint.ownTold','1')}catch(e){}}
+      ownRefused=false;ownAuto();
+    }
+    navRedraw();
+  }
+  function ownHas(){return ownOn&&own.size>0&&map.getZoom()>=15}
+  function ownSave(){clearTimeout(ownSaveT);ownSaveT=setTimeout(()=>{
+    const arr=[...own.values()];if(arr.length>6000)arr.splice(0,arr.length-6000);
+    idb.set('parcelCache',arr).catch(()=>{});idb.set('parcelCells',[...ownCells].slice(-20000)).catch(()=>{})},1500)}
+  function simplify(ring,max){if(ring.length<=max)return ring;const k=Math.ceil(ring.length/max),out=[];for(let i=0;i<ring.length;i+=k)out.push(ring[i]);return out}
+  function ringCentroid(r){let a=0,x=0,y=0;for(let i=0,j=r.length-1;i<r.length;j=i++){const f=r[j][1]*r[i][0]-r[i][1]*r[j][0];a+=f;x+=(r[j][1]+r[i][1])*f;y+=(r[j][0]+r[i][0])*f}
+    if(Math.abs(a)<1e-12){const n=r.length;return [r.reduce((s,q)=>s+q[0],0)/n,r.reduce((s,q)=>s+q[1],0)/n]}return [y/(3*a),x/(3*a)]}
+  function inRing(lat,lng,r){let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const yi=r[i][0],xi=r[i][1],yj=r[j][0],xj=r[j][1];
+    if((yi>lat)!==(yj>lat)&&lng<(xj-xi)*(lat-yi)/(yj-yi)+xi)c=!c}return c}
+  function ownAdd(f){
+    const p=f.properties||{},g=f.geometry;if(!g)return;
+    const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];
+    const rings=polys.map(pl=>simplify(pl[0].map(q=>[+q[1].toFixed(6),+q[0].toFixed(6)]),80));if(!rings.length)return;
+    const id=p.ll_uuid||(p.fields&&p.fields.ll_uuid)||p.id||rings[0][0].join(',');
+    let big=rings[0];rings.forEach(r=>{if(r.length>big.length)big=r});
+    const v=regridRows(f);
+    own.set(id,{id,o:v.owner||'',c:ringCentroid(big),g:rings,f:{properties:{fields:{owner:v.owner,parcelnumb:v.apn,ll_gisacre:v.acres,address:v.addr,usedesc:v.use,saledate:v.sale,saleprice:v.price,parval:v.val,mailadd:v.mail}},geometry:g}});
+  }
+  function ownFind(lat,lng){for(const x of own.values())if(x.g.some(r=>inRing(lat,lng,r)))return x.f;return null}
+  function shortOwner(o){o=String(o||'').replace(/\s+/g,' ').trim();return o.length>26?o.slice(0,24)+'…':o}
+  function ownSvg(pathOf,P){
+    if(!ownHas())return '';
+    const b=map.getBounds().pad(.1),W=innerWidth,H=innerHeight,placed=[],lines=!layerState.on.includes('parcels');let h='',lab='';
+    for(const x of own.values()){
+      if(!b.contains(x.c))continue;
+      if(lines)for(const r of x.g){const d=pathOf([...r,r[0]]);if(d)h+=`<path d="${d}Z" fill="none" stroke="#E0287D" stroke-width="1.5" opacity=".75"/>`}
+      if(!x.o)continue;
+      const p=P(x.c);if(p.x<-50||p.x>W+50||p.y<0||p.y>H)continue;
+      const t=shortOwner(x.o),w=t.length*6.6+10,box={l:p.x-w/2,r:p.x+w/2,t:p.y-9,b:p.y+9};
+      if(placed.some(q=>box.l<q.r&&box.r>q.l&&box.t<q.b&&box.b>q.t))continue;placed.push(box);
+      lab+=`<text x="${p.x.toFixed(1)}" y="${(p.y+4).toFixed(1)}" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12" fill="#1C252C" stroke="#fff" stroke-width="3.5" paint-order="stroke" stroke-linejoin="round">${esc(t)}</text>`;
+    }
+    return h+lab;
+  }
+  function ownCellsInView(){
+    const b=map.getBounds(),out=[];
+    const i0=Math.floor(b.getSouth()/OWN_CELL),i1=Math.floor(b.getNorth()/OWN_CELL),j0=Math.floor(b.getWest()/OWN_CELL),j1=Math.floor(b.getEast()/OWN_CELL);
+    for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++)out.push(i+','+j);
+    // nearest the middle of the screen first
+    const c=map.getCenter(),ci=c.lat/OWN_CELL,cj=c.lng/OWN_CELL;
+    return out.sort((a,b2)=>{const[ai,aj]=a.split(',').map(Number),[bi,bj]=b2.split(',').map(Number);return Math.hypot(ai+.5-ci,aj+.5-cj)-Math.hypot(bi+.5-ci,bj+.5-cj)});
+  }
+  async function ownCell(k){
+    const[i,j]=k.split(',').map(Number),s=i*OWN_CELL,w=j*OWN_CELL,n=s+OWN_CELL,e=w+OWN_CELL;
+    const poly={type:'Polygon',coordinates:[[[w,s],[e,s],[e,n],[w,n],[w,s]]]};
+    const r=await fetch(`https://app.regrid.com/api/v2/parcels/area?limit=200&return_geometry=true&geojson=${encodeURIComponent(JSON.stringify(poly))}&token=${encodeURIComponent(regridKey)}`);
+    if(r.status===401||r.status===403){ownRefused=true;throw new Error('refused')}
+    if(r.status===429)throw new Error('busy');
+    const d=await r.json(),fc=(d&&d.parcels)||d,feats=(fc&&fc.features)||[];
+    feats.forEach(ownAdd);rgCount(feats.length);ownCells.add(k);
+  }
+  async function ownAuto(){
+    if(!ownOn||!regridKey||ownRefused||!navigator.onLine||ownBusy||map.getZoom()<16)return;
+    const need=ownCellsInView().filter(k=>!ownCells.has(k));
+    if(!need.length||need.length>40)return;                 // (>40 would mean a huge view — zoom in)
+    ownBusy=true;
+    try{
+      for(let x=0;x<need.length;x+=3){
+        if(!ownOn||map.getZoom()<16)break;
+        await Promise.all(need.slice(x,x+3).map(k=>ownCell(k).catch(e=>{if(e.message==='refused')throw e})));
+        ownSave();navRedraw();
+      }
+    }catch(e){if(ownRefused)toast('Regrid refused the key (expired trial or wrong key) — owner names paused')}
+    finally{ownBusy=false}
+    // you may have moved while it was loading
+    if(ownOn&&ownCellsInView().some(k=>!ownCells.has(k)))setTimeout(ownAuto,800);
+  }
+  map.on('moveend zoomend',()=>{clearTimeout(ownTimer);ownTimer=setTimeout(ownAuto,1000);navRedraw()});
+  // If you already have a Regrid key, switch owner names on once so they just show up
+  setTimeout(()=>{let done='0';try{done=localStorage.getItem('onpoint.ownAuto1')||'0'}catch(e){}
+    if(regridKey&&done!=='1'){try{localStorage.setItem('onpoint.ownAuto1','1')}catch(e){}
+      ['parcels','owners'].forEach(k=>{if(!layerState.on.includes(k))layerState.on.push(k)});applyLayers()}},0);
+
   function showRegridKey(turnOnLayer){
     openSheet(`<h2 id="sheetTitle">Regrid key</h2>
       <p class="fine" style="font-size:15px;margin-top:4px">Regrid has property lines and owner names for the whole US. It's a paid service with a free trial — sign up at <b>regrid.com</b> (Parcel API), then copy your API token here.</p>
       <label class="f" for="rgK">API token</label><input type="text" id="rgK" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your token" value="${esc(regridKey)}">
       <p class="fine">Stays on this phone only. Each lookup and map area uses some of your Regrid allowance.</p>
+      <p class="fine"><b>Used this month:</b> ${rgUsed().toLocaleString()} records</p>
       <div class="row"><button class="b-ghost" id="rgSite">Open regrid.com</button><button class="b-ghost" id="rgClr">Remove</button><button class="b-flag" id="rgSave">Save</button></div>`);
     $('rgSite').onclick=()=>window.open('https://regrid.com/api','_blank');
     $('rgClr').onclick=()=>{regridKey='';try{localStorage.removeItem('onpoint.regrid')}catch(e){}
-      layerState.on=layerState.on.filter(k=>k!=='parcels');applyLayers();closeSheet();toast('Regrid key removed')};
+      layerState.on=layerState.on.filter(k=>k!=='parcels'&&k!=='owners');applyLayers();closeSheet();toast('Regrid key removed')};
     $('rgSave').onclick=()=>{const k=$('rgK').value.trim();if(!k){toast('Paste a token first');return}
-      regridKey=k;try{localStorage.setItem('onpoint.regrid',k)}catch(e){}
+      regridKey=k;ownRefused=false;try{localStorage.setItem('onpoint.regrid',k)}catch(e){}
       parcelTiles.setUrl(parcelUrl());
-      if(turnOnLayer||prOn){if(!layerState.on.includes('parcels'))layerState.on.push('parcels');applyLayers()}
+      ['parcels','owners'].forEach(k=>{if(!layerState.on.includes(k))layerState.on.push(k)});applyLayers();
       closeSheet();toast('Regrid key saved — zoom in to see property lines')};
   }
 
@@ -1671,7 +1799,9 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   // Tap points on the map; shows each stretch, the total, the direction, and (optionally) the area inside.
   let ms={on:false,pts:[],area:false},msWas=false;
   function msHas(){return ms.on&&ms.pts.length>0}
-  function msTotal(){let d=0;for(let i=1;i<ms.pts.length;i++)d+=haversine({lat:ms.pts[i-1][0],lng:ms.pts[i-1][1]},{lat:ms.pts[i][0],lng:ms.pts[i][1]});return d}
+  function msSides(){const p=ms.pts,out=[];for(let i=1;i<p.length;i++)out.push([i-1,i]);if(ms.area&&p.length>=3)out.push([p.length-1,0]);return out}
+  function msSideLen(i,j){return haversine({lat:ms.pts[i][0],lng:ms.pts[i][1]},{lat:ms.pts[j][0],lng:ms.pts[j][1]})}
+  function msTotal(){return msSides().reduce((a,[i,j])=>a+msSideLen(i,j),0)}
   function msAreaM2(){
     if(ms.pts.length<3)return 0;const R=6371000,r=Math.PI/180,lat0=ms.pts.reduce((a,q)=>a+q[0],0)/ms.pts.length;
     const xy=ms.pts.map(q=>[R*q[1]*r*Math.cos(lat0*r),R*q[0]*r]);let a=0;
@@ -1690,13 +1820,21 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     }
     const line=pathOf(ms.area&&pts.length>=3?[...pts,pts[0]]:pts);
     if(pts.length>1)h+=`<path d="${line}" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/><path d="${line}" fill="none" stroke="#F28C28" stroke-width="3.5" stroke-dasharray="10 6" stroke-linecap="round" stroke-linejoin="round"/>`;
-    // each stretch's length at its middle (skip if too short on screen)
-    const segs=[];for(let i=1;i<pts.length;i++)segs.push([i-1,i]);if(ms.area&&pts.length>=3)segs.push([pts.length-1,0]);
-    for(const [i,j] of segs){const a=sp[i],b=sp[j];if(Math.hypot(b.x-a.x,b.y-a.y)<70)continue;
-      h+=msLabel((a.x+b.x)/2,(a.y+b.y)/2,fmtDist(haversine({lat:pts[i][0],lng:pts[i][1]},{lat:pts[j][0],lng:pts[j][1]})),false)}
-    sp.forEach((p,i)=>{h+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${i===0?7:5.5}" fill="${i===0?'#2E9E5B':'#F28C28'}" stroke="#fff" stroke-width="2.5"/>`});
-    if(pts.length>1){const l=sp[sp.length-1];h+=msLabel(l.x,l.y-22,'Total '+fmtDist(msTotal()),true)}
-    if(ms.area&&pts.length>=3){const cx0=sp.reduce((a,p)=>a+p.x,0)/sp.length,cy0=sp.reduce((a,p)=>a+p.y,0)/sp.length;h+=msLabel(cx0,cy0,fmtArea(msAreaM2()),true)}
+    // every side gets its length, written along the side and nudged outside the shape
+    const cxs=sp.reduce((a,p)=>a+p.x,0)/sp.length,cys=sp.reduce((a,p)=>a+p.y,0)/sp.length,numbered=ms.area&&pts.length>=3;
+    msSides().forEach(([i,j],k)=>{
+      const a=sp[i],b=sp[j],dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);if(len<22)return;
+      let nx=-dy/len,ny=dx/len;const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+      if(numbered&&((mx-cxs)*nx+(my-cys)*ny)<0){nx=-nx;ny=-ny}          // point away from the middle
+      const off=numbered?16:14,x=mx+nx*off,y=my+ny*off;
+      let ang=Math.atan2(dy,dx)*180/Math.PI;if(ang>90)ang-=180;if(ang<-90)ang+=180;  // keep text upright
+      const txt=(numbered?(k+1)+' · ':'')+fmtDist(msSideLen(i,j)),w=txt.length*6.9+12;
+      h+=`<g transform="translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${ang.toFixed(1)})"><rect x="${(-w/2).toFixed(1)}" y="-10" width="${w.toFixed(1)}" height="20" rx="6" fill="#fff" stroke="#1C252C" stroke-width="1.3"/>`+
+         `<text x="0" y="4.3" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12" fill="#1C252C">${txt}</text></g>`;
+    });
+    // corner dots are draggable handles (msSyncHandles), not drawn here
+    if(pts.length>1&&!(ms.area&&pts.length>=3)){const l=sp[sp.length-1];h+=msLabel(l.x,l.y-24,'Total '+fmtDist(msTotal()),true)}
+    if(ms.area&&pts.length>=3){h+=msLabel(cxs,cys-12,fmtArea(msAreaM2()),true)+msLabel(cxs,cys+14,'around '+fmtDist(msTotal()),false)}
     return h;
   }
   function msUpdate(){
@@ -1706,18 +1844,55 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     if(n>=2){const a=ms.pts[n-2],b=ms.pts[n-1],br=bearingTo({lat:a[0],lng:a[1]},{lat:b[0],lng:b[1]});
       sub.push(`last stretch ${CARD[Math.round(br/22.5)%16]} ${Math.round(br)}°`)}
     if(tot>=1609.34)sub.push(Math.round(tot*3.28084).toLocaleString()+' ft');
-    if(ms.area&&n>=3)sub.push('area '+fmtArea(msAreaM2()));
+    if(ms.area&&n>=3)sub.push('perimeter '+fmtDist(tot));
     $('msSub').textContent=sub.join(' · ');
+    const closed=ms.area&&n>=3;
+    $('msSideList').innerHTML=(closed||n>=3)?msSides().map(([i,j],k)=>`<span class="dist" style="margin:0">${closed?'Side ':'Leg '}${k+1}: ${fmtDist(msSideLen(i,j))}</span>`).join(''):'';
+    if(closed)$('msTotal').textContent=fmtArea(msAreaM2());
     $('msHint').style.display=n<2?'':'none';
     $('msArea').setAttribute('aria-pressed',ms.area);
+    msSyncHandles();
     navRedraw();
   }
+  // ---- Draggable corners ----
+  // Each corner is a handle you can press and drag; sides, lengths and area update as you move it.
+  // Tap the green first corner to close the shape; tap a corner and pick Remove to delete it.
+  const msLayer=L.layerGroup().addTo(map);let msMarks=[];
+  const msIcon=first=>L.divIcon({className:'',iconSize:[38,38],iconAnchor:[19,19],
+    html:`<div style="width:38px;height:38px;display:grid;place-items:center"><div style="width:20px;height:20px;border-radius:50%;background:${first?'#2E9E5B':'#F28C28'};border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)"></div></div>`});
+  function msSyncHandles(){
+    if(!ms.on){msLayer.clearLayers();msMarks=[];return}
+    if(msMarks.length!==ms.pts.length){
+      msLayer.clearLayers();
+      msMarks=ms.pts.map((q,i)=>{
+        const m=L.marker(q,{icon:msIcon(i===0),draggable:true,zIndexOffset:3000,keyboard:false}).addTo(msLayer);
+        m.on('dragstart',()=>{m._drag=true});
+        m.on('drag',()=>{const ll=m.getLatLng();ms.pts[i]=[+ll.lat.toFixed(7),+ll.lng.toFixed(7)];msUpdate()});
+        m.on('dragend',()=>{m._drag=false;m._dragAt=Date.now();msUpdate()});
+        m.on('click',()=>{
+          if(m._dragAt&&Date.now()-m._dragAt<400)return;
+          if(i===0&&ms.pts.length>=3&&!ms.area){ms.area=true;msUpdate();toast('Shape closed — drag corners to adjust');return}
+          msCornerMenu(i);
+        });
+        return m;
+      });
+    }else{
+      msMarks.forEach((m,i)=>{if(!m._drag)m.setLatLng(ms.pts[i])});
+    }
+  }
+  function msCornerMenu(i){
+    openSheet(`<h2 id="sheetTitle">Corner ${i+1}</h2><p class="fine" style="margin-top:4px">Drag a corner to move it. You can also remove this one.</p>
+      <div class="row"><button class="b-danger" id="mcDel">Remove corner</button><button class="b-primary" id="mcOk">Close</button></div>`);
+    $('mcOk').onclick=closeSheet;
+    $('mcDel').onclick=()=>{ms.pts.splice(i,1);if(ms.pts.length<3)ms.area=false;closeSheet();msUpdate()};
+  }
+
   function msOpen(){
     ms.on=true;$('mspanel').classList.add('show');
     document.querySelector('.dock').style.display='none';
     follow=false;$('locBtn').classList.remove('on');msUpdate();
   }
-  function msClose(){ms={on:false,pts:[],area:false};$('mspanel').classList.remove('show');document.querySelector('.dock').style.display='';navRedraw()}
+  function msClose(){ms={on:false,pts:[],area:false};msSyncHandles();$('mspanel').classList.remove('show');document.querySelector('.dock').style.display='';navRedraw()}
   $('msBtn').onclick=()=>{if(ms.on)msClose();else msOpen()};
   $('msUndo').onclick=()=>{ms.pts.pop();msUpdate()};
   $('msClear').onclick=()=>{ms.pts=[];msUpdate()};
@@ -2070,12 +2245,12 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   const SVGNS='http://www.w3.org/2000/svg';
   function navDraw(){
     navRaf=0;const svg=$('navSvg');
-    const hasT=trkHas()||skHas()||msHas()||propHas();
+    const hasT=trkHas()||skHas()||msHas()||propHas()||ownHas();
     if(!nav&&!hasT){svg.innerHTML='';return}
     const P=ll=>map.latLngToContainerPoint(ll);
     const pathOf=pts=>{let d='',last=null;for(const ll of pts){if(!ll){last=null;continue}const p=P(ll);
         if(last&&Math.abs(p.x-last.x)+Math.abs(p.y-last.y)<1.5)continue;d+=(last?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);last=p}return d};
-    let h=hasT?propSvg(pathOf)+skSvg(pathOf)+trkSvg(pathOf,P)+msSvg(pathOf,P):'';
+    let h=hasT?ownSvg(pathOf,P)+propSvg(pathOf)+skSvg(pathOf)+trkSvg(pathOf,P)+msSvg(pathOf,P):'';
     if(!nav){svg.innerHTML=h;return}
     if(navRoutePts&&navRoutePts.length>1){
       const d=pathOf(navRoutePts);
@@ -2095,7 +2270,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     h+=`<circle cx="${t.x.toFixed(1)}" cy="${t.y.toFixed(1)}" r="16" fill="#fff" opacity=".9"/><circle cx="${t.x.toFixed(1)}" cy="${t.y.toFixed(1)}" r="12" fill="rgba(224,40,125,.25)" stroke="#E0287D" stroke-width="4"/>`;
     svg.innerHTML=h;
   }
-  function navRedraw(){if((nav||trkHas()||skHas()||skWasShown||msHas()||msWas||propHas()||propWas)&&!navRaf){skWasShown=skHas();msWas=msHas();propWas=propHas();navRaf=requestAnimationFrame(navDraw)}}
+  function navRedraw(){if((nav||trkHas()||skHas()||skWasShown||msHas()||msWas||propHas()||propWas||ownHas()||ownWas)&&!navRaf){skWasShown=skHas();msWas=msHas();propWas=propHas();ownWas=ownHas();navRaf=requestAnimationFrame(navDraw)}}
   map.on('move zoom rotate viewreset resize moveend zoomend rotateend',navRedraw);
   map.on('zoomanim',()=>{if(nav||trkHas()||skHas()||msHas())$('navSvg').style.opacity=0});
   map.on('zoomend',()=>{$('navSvg').style.opacity=1});
@@ -2485,7 +2660,9 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   window.addEventListener('online',()=>toast('Back online'));
 
   // ---------- actions ----------
-  map.on('click',e=>{ if(prOn){propLookup(e.latlng.lat,e.latlng.lng);return}
+  map.on('click',e=>{ if(ms.on&&ms.pts.length>=3&&!ms.area){const f=map.latLngToContainerPoint(ms.pts[0]),c=e.containerPoint;
+      if(Math.hypot(f.x-c.x,f.y-c.y)<28){ms.area=true;msUpdate();toast('Shape closed');return}}
+    if(prOn){propLookup(e.latlng.lat,e.latlng.lng);return}
     if(ms.on){ms.pts.push([+e.latlng.lat.toFixed(7),+e.latlng.lng.toFixed(7)]);msUpdate();return}
     if(tEd){if(tEd.mode==='add')tEdAddPoint(e.latlng.lat,e.latlng.lng);return}
     if(dlSelecting){if(dlMode==='trail'){dlTrail.push([+e.latlng.lat.toFixed(6),+e.latlng.lng.toFixed(6)]);redrawEdit()}return}
