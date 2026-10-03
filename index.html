@@ -241,7 +241,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     <div class="nstat"><small id="navRouteLbl">By road</small><b id="navRoute">—</b></div>
   </div>
   <div class="seg" id="navMode"><button data-m="car" aria-pressed="true">🚗 Drive</button><button data-m="foot" aria-pressed="false">🚶 Walk</button><button data-m="bike" aria-pressed="false">🚲 Bike</button></div>
-  <div class="row" style="margin-top:6px"><button class="b-ghost" id="navPin">⚑ Pin it</button><button class="b-ghost" id="navG">Google Maps</button></div>
+  <div class="row" style="margin-top:6px"><button class="b-ghost" id="navPin">⚑ Pin it</button><button class="b-ghost" id="navG">Google Maps</button><button class="b-ghost" id="navA">Apple Maps</button></div>
   <div class="row" style="margin-top:8px"><button class="b-ghost" id="navCam">📷 Back to camera</button><button class="b-primary" id="navEnd">Done</button></div>
 </div>
 <div class="dlpanel" id="dlpanel" role="dialog" aria-label="Choose area to download">
@@ -360,7 +360,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <div class="note-body">${owner?esc(owner):'Licensee not listed'}${call?`<br><span class="note-empty" style="font-style:normal">Call sign ${esc(call)}</span>`:''}${h?`<br>Height: ${esc(h)}`:''}${city?`<br>${esc(city)}${st?', '+esc(st):''}`:''}</div>
       <details class="meta"><summary>All FCC details</summary><div style="margin-top:6px;line-height:1.5">${extra||'None'}</div></details>
       <div class="row"><button class="b-primary" id="tNav">Directions</button><button class="b-flag" id="tPin">Pin it</button></div>`);
-    $('tNav').onclick=()=>window.open(`https://www.google.com/maps/dir/?api=1&destination=${t.lat},${t.lng}`,'_blank');
+    $('tNav').onclick=()=>{closeSheet();startNav({name:owner||'Cell tower',sub:'Cell tower',icon:'📡',lat:t.lat,lng:t.lng})};
     $('tPin').onclick=()=>{newPinAt(t.lat,t.lng);setTimeout(()=>{const f=$('fTitle');if(f)f.value='Cell tower'+(owner?' – '+owner:'')},30)};
   }
 
@@ -443,7 +443,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 31 (route lines locked + pin routes)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 32 (Google Maps hand-off)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -797,6 +797,27 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   function distLabel(p){return me?`${fmtDist(haversine(me,p))} ${bearing(me,p)}`:''}
   function waterText(p){return [p.depth!=null?p.depth+' ft deep':'',p.temp!=null?p.temp+'°F water':''].filter(Boolean).join(' · ')}
   function waterChips(p){return [p.depth!=null?`<span class="dist">↧ ${p.depth} ft</span>`:'',p.temp!=null?`<span class="dist">🌡 ${p.temp}°F</span>`:''].join('')}
+  // Hand off to Google Maps / Apple Maps with the destination filled in.
+  // On iPhone the normal google.com link opens the Google Maps app but drops the destination,
+  // so use Google Maps' own app link (comgooglemaps://) and fall back to the web if it isn't installed.
+  const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  function openGoogleMaps(lat,lng,mode){
+    const ll=`${(+lat).toFixed(6)},${(+lng).toFixed(6)}`;
+    const gm=mode==='foot'?'walking':mode==='bike'?'bicycling':'driving';
+    const web=`https://www.google.com/maps/dir/?api=1&destination=${ll}&travelmode=${gm}`;
+    if(isIOS){
+      let left=false;const onHide=()=>{left=true};
+      document.addEventListener('visibilitychange',onHide,{once:true});
+      location.href=`comgooglemaps://?daddr=${ll}&directionsmode=${gm}`;
+      setTimeout(()=>{document.removeEventListener('visibilitychange',onHide);if(!left&&document.visibilityState==='visible')location.href=web},1500);
+    }else{
+      window.open(web,'_blank');
+    }
+  }
+  function openAppleMaps(lat,lng,mode){
+    const ll=`${(+lat).toFixed(6)},${(+lng).toFixed(6)}`,f=mode==='foot'?'w':mode==='bike'?'c':'d';
+    location.href=`https://maps.apple.com/?daddr=${ll}&dirflg=${f}`;
+  }
   function toast(t){const el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),2800);}
   function setCount(){$('count').textContent=pins.length}
   setCount();
@@ -1219,7 +1240,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v31 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v32 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1397,7 +1418,8 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   $('navEnd').onclick=endNav;
   $('navCam').onclick=()=>{endNav();openAR()};
   $('navPin').onclick=()=>{if(!nav)return;const t=nav;newPinAt(t.lat,t.lng);setTimeout(()=>{const f=$('fTitle');if(f)f.value=t.name},30)};
-  $('navG').onclick=()=>{if(nav)window.open(`https://www.google.com/maps/dir/?api=1&destination=${nav.lat},${nav.lng}${navMode==='foot'?'&travelmode=walking':navMode==='bike'?'&travelmode=bicycling':''}`,'_blank')};
+  $('navG').onclick=()=>{if(nav)openGoogleMaps(nav.lat,nav.lng,navMode)};
+  $('navA').onclick=()=>{if(nav)openAppleMaps(nav.lat,nav.lng,navMode)};
 
   function arDetails(it){
     const p=it.p,b=bearingTo(me,p);
@@ -1410,7 +1432,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       <div class="row" style="margin-top:10px"><button class="b-ghost" id="aNav">Directions</button><button class="b-ghost" id="aBack">Back to camera</button></div>`);
     $('aMap').onclick=()=>{closeSheet();follow=false;$('locBtn').classList.remove('on');map.setView([p.lat,p.lng],14)};
     $('aPin').onclick=()=>{newPinAt(p.lat,p.lng);setTimeout(()=>{const f=$('fTitle');if(f)f.value=p.name},30)};
-    $('aNav').onclick=()=>window.open(`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`,'_blank');
+    $('aNav').onclick=()=>{closeSheet();startNav({name:p.name,sub:p.sub,icon:p.icon||AR_TYPES[p.type].icon,lat:p.lat,lng:p.lng,ele:p.ele})};
     $('aBack').onclick=()=>{closeSheet();openAR()};
   }
   async function openAR(){
