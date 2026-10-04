@@ -647,7 +647,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 75 (smoother route map)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 76 (pinch fix)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -749,7 +749,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   function placeMe(){
     if(!meMarker||!disp)return;
     meMarker.setLatLng([disp.lat,disp.lng]);meCircle.setLatLng([disp.lat,disp.lng]);
-    if(follow)map.setView([disp.lat,disp.lng],map.getZoom(),{animate:false});
+    if(follow&&!fingerOnMap())map.setView([disp.lat,disp.lng],map.getZoom(),{animate:false});
     if(typeof navRedraw==='function')navRedraw();
   }
   function glideFrame(now){
@@ -796,13 +796,16 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     if(age>12000){startGeo();poke()}
     updateReadout();
   },5000);
+  let touching=false,touchAt=0;
+  function fingerOnMap(){return touching||Date.now()-touchAt<800}
   function stopFollow(){if(follow){follow=false;$('locBtn').classList.remove('on')}}
   map.on('dragstart',stopFollow);
   (function(){
     const el=map.getContainer();let sx=0,sy=0,down=false;
-    el.addEventListener('touchstart',e=>{if(e.touches.length>1)stopFollow();else{down=true;sx=e.touches[0].clientX;sy=e.touches[0].clientY}},{passive:true});
+    el.addEventListener('touchstart',e=>{touchAt=Date.now();touching=true;if(e.touches.length>1)stopFollow();else{down=true;sx=e.touches[0].clientX;sy=e.touches[0].clientY}},{passive:true,capture:true});
     el.addEventListener('touchmove',e=>{if(e.touches.length>1)stopFollow();else if(down&&Math.hypot(e.touches[0].clientX-sx,e.touches[0].clientY-sy)>8)stopFollow()},{passive:true});
-    el.addEventListener('touchend',()=>{down=false},{passive:true});
+    el.addEventListener('touchend',e=>{down=false;if(!e.touches.length){touching=false;touchAt=Date.now()}},{passive:true,capture:true});
+    el.addEventListener('touchcancel',()=>{touching=false;touchAt=Date.now()},{passive:true,capture:true});
     el.addEventListener('wheel',stopFollow,{passive:true});
     el.addEventListener('dblclick',stopFollow);
   })();
@@ -1573,7 +1576,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v75 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v76 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1732,7 +1735,8 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     // if there isn't room above a tall panel, tuck them away
     fc.style.visibility=(h&&innerHeight-h<330)?'hidden':'';
   }
-  new MutationObserver(liftFabs).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']});
+  {const mo=new MutationObserver(()=>{if(!liftFabs._q){liftFabs._q=requestAnimationFrame(()=>{liftFabs._q=0;liftFabs()})}});
+   document.querySelectorAll('.dlpanel,.navcard').forEach(el=>mo.observe(el,{attributes:true,attributeFilter:['class','style']}));}
   window.addEventListener('resize',liftFabs);
 
   // ---------- Wind in the camera view ----------
@@ -2955,7 +2959,7 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
     setTimeout(()=>{liftFabs();if(fit)ncFitRoute()},300);
   }
   function ncFitRoute(){
-    if(!nav)return;const pts=[];
+    if(!nav)return;if(fingerOnMap()){setTimeout(ncFitRoute,600);return}const pts=[];
     if(navRoutePts)for(let i=0;i<navRoutePts.length;i+=Math.max(1,Math.floor(navRoutePts.length/200)))pts.push(navRoutePts[i]);
     if(navAlts&&!tbtOn)navAlts.forEach(o=>{for(let i=0;i<o.pts.length;i+=Math.max(1,Math.floor(o.pts.length/80)))pts.push(o.pts[i])});
     pts.push([nav.lat,nav.lng]);if(me)pts.push([me.lat,me.lng]);
@@ -3519,7 +3523,7 @@ out tags center 300;`;
   }
 
   function startNav(t){
-    stopAutoRotate();
+    stopAutoRotate();lockTwist(true);
     if(t.trail)setTimeout(()=>trailCardFill(t.trail),0);else{$('navTrail').style.display='none';$('navTrail').innerHTML=''}
     nav=t;navRouteFrom=null;navRoutePts=null;navGap=null;
     $('navName').textContent=`${t.icon||'📍'} ${t.name}`;
@@ -3574,6 +3578,7 @@ out tags center 300;`;
     }catch(e){if(seq===navReq)$('navRoute').textContent='Couldn’t route'}
   }
   function endNav(){
+    if(!ms.on)lockTwist(false);
     navAlts=null;navSel=null;$('navOpts').style.display='none';$('navOpts').innerHTML='';
     tbtStop();navSteps=null;navTotal=0;setTimeout(tripUI,0);
     $('navTrail').style.display='none';$('navTrail').innerHTML='';trip=null;$('navTrip').style.display='none';$('navTrip').innerHTML='';
