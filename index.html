@@ -373,7 +373,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <div class="ar-bot">
     <div class="ar-chips" id="arChips"></div>
     <div id="arDiag" style="font:12px/1.35 ui-monospace,Menlo,monospace;opacity:.85;margin-bottom:6px;white-space:pre-wrap"></div>
-    <div class="ar-range"><span>Range</span><input type="range" id="arRange" min="1" max="60" step="1" value="25" aria-label="How far to show"><span id="arRangeV">25 mi</span></div>
+    <div class="ar-range"><span>Range</span><input type="range" id="arRange" min="0" max="18" step="1" value="15" aria-label="How far to show"><span id="arRangeV" style="min-width:52px;text-align:right">25 mi</span></div>
   </div>
 </section>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -572,7 +572,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 52 (search)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 54 (shorter camera range)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -1207,8 +1207,14 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   $('arChips').onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;const k=b.dataset.k;arShow[k]=!arShow[k];
     b.setAttribute('aria-pressed',arShow[k]);arSave();if(k==='tower'&&arShow.tower)arLoadTowers(true);
     if(arShow[k]&&((k==='road'&&!arRoads.length)||(k==='local'&&!arLocal.length)))arLoad(true)};
-  $('arRange').oninput=e=>{arRangeMi=+e.target.value;$('arRangeV').textContent=arRangeMi+' mi';arSave()};
-  $('arRange').onchange=()=>arLoad(true);
+  // Range steps: fine control up close (from 200 ft), bigger jumps far out (to 60 mi)
+  const AR_STEPS=[200/5280,500/5280,1000/5280,0.25,0.5,0.75,1,1.5,2,3,5,8,10,15,20,25,35,45,60];
+  const arStepOf=mi=>{let b=0;AR_STEPS.forEach((v,i)=>{if(Math.abs(v-mi)<Math.abs(AR_STEPS[b]-mi))b=i});return b};
+  const fmtRange=mi=>mi<0.25?Math.round(mi*5280)+' ft':(mi<1?mi+' mi':mi+' mi');
+  function arRangeUI(){$('arRange').value=arStepOf(arRangeMi);$('arRangeV').textContent=fmtRange(arRangeMi)}
+  $('arRange').oninput=e=>{arRangeMi=AR_STEPS[+e.target.value];$('arRangeV').textContent=fmtRange(arRangeMi);arSave();arGeoKey='';arRoadPickAt=0};
+  // only fetch more when you widen past what's already loaded (it always loads at least 25 mi of towns & peaks)
+  $('arRange').onchange=()=>{if(!arFetchedAt||arRangeMi>arFetchedAt.range)arLoad(true)};
 
   // What kind of thing is it? (icon + short description from OpenStreetMap tags)
   function arClassify(t){
@@ -1480,7 +1486,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v52 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v54 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1832,6 +1838,26 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   let ms={on:false,pts:[],area:false},msWas=false;
   function msHas(){return ms.on&&ms.pts.length>0}
   const msLetter=k=>k<26?String.fromCharCode(65+k):String.fromCharCode(65+Math.floor(k/26)-1)+String.fromCharCode(65+k%26);
+  // Corner angles. Closed shape: the inside angle at every corner (a true square shows 90° at each).
+  // Open path: the angle at each bend. Works on a flat local projection, accurate at these sizes.
+  function msAngles(){
+    const P=ms.pts,n=P.length,out=[];if(n<3)return out;
+    const lat0=P.reduce((a,q)=>a+q[0],0)/n,lng0=P.reduce((a,q)=>a+q[1],0)/n,k=Math.cos(lat0*Math.PI/180);
+    const xy=P.map(q=>[(q[1]-lng0)*k*111320,(q[0]-lat0)*110540]);
+    const closed=ms.area;
+    let area=0;for(let i=0;i<n;i++){const j=(i+1)%n;area+=xy[i][0]*xy[j][1]-xy[j][0]*xy[i][1]}
+    for(let i=0;i<n;i++){
+      if(!closed&&(i===0||i===n-1))continue;
+      const a=xy[(i-1+n)%n],p=xy[i],b=xy[(i+1)%n];
+      const v1=[a[0]-p[0],a[1]-p[1]],v2=[b[0]-p[0],b[1]-p[1]],l1=Math.hypot(...v1),l2=Math.hypot(...v2);
+      if(!l1||!l2)continue;
+      let ang=Math.acos(Math.max(-1,Math.min(1,(v1[0]*v2[0]+v1[1]*v2[1])/(l1*l2))))*180/Math.PI;
+      if(closed){const turn=(p[0]-a[0])*(b[1]-p[1])-(p[1]-a[1])*(b[0]-p[0]);if(turn*area<0)ang=360-ang}
+      out.push({i,ang});
+    }
+    return out;
+  }
+  const fmtAng=a=>(Math.abs(a-Math.round(a))<0.05?Math.round(a):a.toFixed(1))+'°';
   function msSides(){const p=ms.pts,out=[];for(let i=1;i<p.length;i++)out.push([i-1,i]);if(ms.area&&p.length>=3)out.push([p.length-1,0]);return out}
   function msSideLen(i,j){return haversine({lat:ms.pts[i][0],lng:ms.pts[i][1]},{lat:ms.pts[j][0],lng:ms.pts[j][1]})}
   function msTotal(){return msSides().reduce((a,[i,j])=>a+msSideLen(i,j),0)}
@@ -1865,6 +1891,19 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       h+=`<g transform="translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${ang.toFixed(1)})"><rect x="${(-w/2).toFixed(1)}" y="-10" width="${w.toFixed(1)}" height="20" rx="6" fill="#fff" stroke="#1C252C" stroke-width="1.3"/>`+
          `<text x="0" y="4.3" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12" fill="#1C252C">${txt}</text></g>`;
     });
+    // corner angles, written just inside each corner (green when it's a right angle)
+    msAngles().forEach(({i,ang})=>{
+      const p=sp[i],prev=sp[(i-1+sp.length)%sp.length],next=sp[(i+1)%sp.length];
+      let ux=(prev.x-p.x),uy=(prev.y-p.y),wx=(next.x-p.x),wy=(next.y-p.y);
+      const lu=Math.hypot(ux,uy)||1,lw=Math.hypot(wx,wy)||1;ux/=lu;uy/=lu;wx/=lw;wy/=lw;
+      let bx=ux+wx,by=uy+wy,lb=Math.hypot(bx,by);
+      if(lb<.05){bx=-uy;by=ux;lb=1}                                   // straight line: put it to the side
+      bx/=lb;by/=lb;
+      if(ang>180){bx=-bx;by=-by}                                       // reflex corner: label goes the other way
+      const x=p.x+bx*30,y=p.y+by*30,right=Math.abs(ang-90)<0.5,t=(right?'∟ ':'')+fmtAng(ang),w=t.length*7+10;
+      h+=`<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})"><rect x="${(-w/2).toFixed(1)}" y="-10" width="${w.toFixed(1)}" height="20" rx="10" fill="${right?'#2E9E5B':'#1C252C'}" opacity=".92"/>`+
+         `<text x="0" y="4.3" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12" fill="#fff">${t}</text></g>`;
+    });
     // corner dots are draggable handles (msSyncHandles), not drawn here
     if(pts.length>1&&!(ms.area&&pts.length>=3)){const l=sp[sp.length-1];h+=msLabel(l.x,l.y-24,'Total '+fmtDist(msTotal()),true)}
     if(ms.area&&pts.length>=3){h+=msLabel(cxs,cys-12,fmtArea(msAreaM2()),true)+msLabel(cxs,cys+14,'around '+fmtDist(msTotal()),false)}
@@ -1880,7 +1919,9 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     if(ms.area&&n>=3)sub.push('perimeter '+fmtDist(tot));
     $('msSub').textContent=sub.join(' · ');
     const closed=ms.area&&n>=3;
-    $('msSideList').innerHTML=(closed||n>=3)?msSides().map(([i,j],k)=>`<span class="dist" style="margin:0">${closed?'Side ':'Leg '}${msLetter(k)}: ${fmtDist(msSideLen(i,j))}</span>`).join(''):'';
+    const angs=msAngles();
+    $('msSideList').innerHTML=((closed||n>=3)?msSides().map(([i,j],k)=>`<span class="dist" style="margin:0">${closed?'Side ':'Leg '}${msLetter(k)}: ${fmtDist(msSideLen(i,j))}</span>`).join(''):'')+
+      (angs.length?`<div style="flex-basis:100%;height:0"></div>`+angs.map(a=>`<span class="dist" style="margin:0;${Math.abs(a.ang-90)<0.5?'background:#DDF1E4;color:#1D6B3D':''}">∠ ${fmtAng(a.ang)}</span>`).join('')+(closed?`<span class="dist" style="margin:0;background:none;color:var(--muted)">total ${Math.round(angs.reduce((x,a)=>x+a.ang,0))}°</span>`:''):'');
     if(closed)$('msTotal').textContent=fmtArea(msAreaM2());
     $('msHint').style.display=n<2?'':'none';
     $('msArea').setAttribute('aria-pressed',ms.area);
@@ -2475,7 +2516,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       arStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
     }catch(e){toast(e.name==='NotAllowedError'?'Camera access was declined — allow it in Safari settings':'Couldn’t start the camera');return}
     const v=$('arVideo');v.srcObject=arStream;try{await v.play()}catch(e){}
-    arChips();$('arRange').value=arRangeMi;$('arRangeV').textContent=arRangeMi+' mi';
+    arChips();arRangeUI();
     $('ar').classList.add('show');arOn=true;arLoad(false);arFrame();
   }
   function closeAR(){
