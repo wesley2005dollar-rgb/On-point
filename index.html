@@ -619,6 +619,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     sst:{name:'Ocean water temp',desc:'NASA daily sea-surface temperature, about 1 km detail',temp:'Ocean water temp',
       layer:L.tileLayer(gibs('GHRSST_L4_MUR_Sea_Surface_Temperature'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'SST © NASA GIBS'})},
     owners:{name:'Owner names',desc:'Writes who owns each property right on the map — loads by itself as you look around (Regrid key; uses your allowance)',layer:ownLayer},
+    cov:{name:'No-signal areas',desc:'Red = where your carrier reports no LTE signal (FCC map). Pick your carrier the first time',layer:covLayer},
     parcels:{name:'Property lines',desc:'Property boundaries (Regrid — needs your key). Tap a property with 🏠 in the ✏ tools to see the owner',layer:parcelTiles},
     air:{name:'Air temperature (live)',desc:'Current temperature across the map, updated every 15 min',layer:airLayer},
     lst:{name:'Land & lake surface temp',desc:'NASA daily daytime surface temp. Gaps where it was cloudy',temp:'Surface temp',
@@ -652,7 +653,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 80 (no towers or dead zones)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 81 (no-signal areas in red)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -1584,7 +1585,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v80 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v81 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1775,6 +1776,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       <div class="toolgrid">
         <button id="tDraw"><svg viewBox="0 0 24 24" fill="none" stroke="#E0287D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg>Draw / write<small>Write notes and sketch right on the map</small></button>
         <button id="tMeasure"><svg viewBox="0 0 24 24" fill="none" stroke="#F28C28" stroke-width="2" stroke-linejoin="round"><rect x="2" y="8" width="20" height="8" rx="1.5" transform="rotate(-30 12 12)"/><path d="M7.2 10.6l1 1.8M10 9l1.6 2.8M12.8 7.4l1 1.8M15.6 5.8l1.6 2.8" stroke-linecap="round"/></svg>Measure<small>Distance between spots, or the area inside</small></button>
+        <button id="tDead" style="grid-column:1/-1"><span style="font-size:28px;line-height:1">📵</span>Show no-signal areas<small>Red where your carrier has no signal</small></button>
         <button id="tImport"><span style="font-size:28px;line-height:1">🔗</span>Import a route<small>Paste a Google Maps or Apple Maps link</small></button>
         <button id="tSaved"><span style="font-size:28px;line-height:1">🗂</span>Saved routes<small>Routes saved for no-signal use</small></button>
         <button id="tTrail" style="grid-column:1/-1"><span style="font-size:28px;line-height:1">🥾</span>Plan a trail<small>Drive to the trailhead, parking, then the trail — length, climb and difficulty</small></button>
@@ -1786,6 +1788,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     $('tProp').onclick=()=>{closeSheet();if(skOn)skClose();if(ms.on)msClose();propOpen()};
     $('tTrail').onclick=()=>{closeSheet();if(skOn)skClose();if(ms.on)msClose();showTrails()};
     $('tImport').onclick=()=>{closeSheet();showImport()};
+    $('tDead').onclick=()=>{closeSheet();follow=false;$('locBtn').classList.remove('on');if(map.getZoom()>11)map.setZoom(10);if(covCarrier){if(!layerState.on.includes('cov')){layerState.on.push('cov');applyLayers()}else covStart()}else showCarrierPick()};
 
     $('tSaved').onclick=()=>{closeSheet();showSavedRoutes()};
   };
@@ -3644,22 +3647,52 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
     covSrc=L0;
     if(/MapServer/.test(L0.url)){
       const svc=L0.svc||L0.url.replace(/\/\d+$/,''),id=L0.id!=null?L0.id:+(L0.url.match(/\/(\d+)$/)||[])[1];
-      covLive=L0.tiled?L.tileLayer(svc+'/tile/{z}/{y}/{x}',{opacity:.5,maxZoom:20,maxNativeZoom:L0.maxZ||16,zIndex:3,attribution:'Coverage: FCC'})
-        :new EsriExport(svc+'/export',{opacity:.55,maxZoom:20,zIndex:3,extra:Number.isFinite(id)?`&layers=show:${id}`:'',attribution:'Coverage: FCC'});
+      const tileUrl=L0.tiled?(c=>`${svc}/tile/${Math.min(c.z,L0.maxZ||16)}/${c.y>>Math.max(0,c.z-(L0.maxZ||16))}/${c.x>>Math.max(0,c.z-(L0.maxZ||16))}`):null;
+      covLive=new DeadZones({svc,id,tiled:L0.tiled,maxZ:L0.maxZ||16,tileUrl,zIndex:3,maxZoom:20,attribution:'Coverage: FCC'});
       covLive.addTo(covLayer);
     }else{                                             // feature layer: draw the coverage shapes for what's on screen
-      covFeat=L.geoJSON(null,{renderer:L.canvas({padding:.2}),interactive:false,style:{stroke:false,fillColor:'#2E9E5B',fillOpacity:.32}}).addTo(covLayer);
+      covFeat=L.layerGroup().addTo(covLayer);
       covQuery();map.on('moveend',covQueue);
     }
-    toast(`${COV_NAME[covCarrier]}: tinted = signal · blank = likely dead zone (FCC 2021, outdoors)`);
+    toast(`${COV_NAME[covCarrier]}: red = no signal (FCC carrier map, outdoors)`);
   }
+  const covCanvas=L.canvas({padding:.3});
+  // Map tiles from the FCC coverage map, turned inside-out: covered pixels become clear,
+  // uncovered pixels become red — so you see the no-signal areas directly.
+  const DeadZones=L.GridLayer.extend({
+    createTile(c,done){
+      const cv=document.createElement('canvas');cv.width=cv.height=256;
+      const img=new Image();img.crossOrigin='anonymous';
+      img.onload=()=>{try{
+          const x=cv.getContext('2d');
+          if(this.options.tiled&&c.z>this.options.maxZ){const k=2**(c.z-this.options.maxZ),sx=(c.x%k)*256/k,sy=(c.y%k)*256/k;x.imageSmoothingEnabled=false;x.drawImage(img,sx,sy,256/k,256/k,0,0,256,256)}
+          else x.drawImage(img,0,0,256,256);
+          const d=x.getImageData(0,0,256,256),p=d.data;
+          for(let i=0;i<p.length;i+=4){if(p[i+3]<25){p[i]=211;p[i+1]=47;p[i+2]=47;p[i+3]=105}else p[i+3]=0}
+          x.putImageData(d,0,0);done(null,cv);
+        }catch(e){covTainted();done(null,cv)}};
+      img.onerror=()=>done(null,cv);
+      if(this.options.tiled)img.src=this.options.tileUrl(c);
+      else{const b=this._tileCoordsToBounds(c),P=L.CRS.EPSG3857,nw=P.project(b.getNorthWest()),se=P.project(b.getSouthEast());
+        img.src=`${this.options.svc}/export?bbox=${[nw.x,se.y,se.x,nw.y].join(',')}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&f=image${Number.isFinite(this.options.id)?`&layers=show:${this.options.id}`:''}`}
+      return cv;
+    }
+  });
+  let covWarned=false;
+  function covTainted(){if(!covWarned){covWarned=true;toast('This coverage map can’t be recolored on this phone — showing it as-is')}}
   function covQueue(){clearTimeout(covTimer);covTimer=setTimeout(covQuery,500)}
   async function covQuery(){
     if(!covFeat||!covSrc)return;
     const z=map.getZoom();if(z<7){covFeat.clearLayers();toast('Zoom in a little to see coverage');return}
     const b=map.getBounds(),tol=(360/(256*2**z))*1.5;
     const u=`${covSrc.url}/query?where=1%3D1&geometry=${[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(v=>v.toFixed(4)).join(',')}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=&returnGeometry=true&outSR=4326&maxAllowableOffset=${tol}&geometryPrecision=5&resultRecordCount=400&f=geojson`;
-    try{const d=await jget(u,20000);if(!covFeat)return;covFeat.clearLayers();covFeat.addData(d)}catch(e){}
+    try{const d=await jget(u,20000);if(!covFeat)return;covFeat.clearLayers();
+      // red everywhere on screen, with the covered shapes cut out as holes
+      const pb=map.getBounds().pad(0.3),outer=[[pb.getSouth(),pb.getWest()],[pb.getNorth(),pb.getWest()],[pb.getNorth(),pb.getEast()],[pb.getSouth(),pb.getEast()]],holes=[];
+      (d.features||[]).forEach(f=>{const g=f.geometry;if(!g)return;const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];
+        polys.forEach(pl=>pl.forEach(r=>holes.push(r.map(q=>[q[1],q[0]]))))});
+      L.polygon([outer,...holes],{renderer:covCanvas,stroke:false,fillColor:'#D32F2F',fillOpacity:.38,fillRule:'evenodd',interactive:false}).addTo(covFeat);
+    }catch(e){}
   }
   function covStop(keep){covLayer.clearLayers();covLive=null;covFeat=null;covSrc=null;map.off('moveend',covQueue)}
   function showCarrierPick(){
@@ -3669,7 +3702,7 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
       <p class="fine">Data: FCC mobile LTE coverage (carrier-reported, 2021, outdoors). Real signal can be weaker indoors or in hollows. Your own recorded dead spots (Signal dead spots layer) show what actually happened on your phone.</p>`);
     $('cpL').onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;covCarrier=b.dataset.c;try{localStorage.setItem('onpoint.carrier',covCarrier)}catch(_){}
       closeSheet();if(!layerState.on.includes('cov')){layerState.on.push('cov');applyLayers()}else covStart();
-      if(!layerState.on.includes('signal')){layerState.on.push('signal');applyLayers()}};
+};
   }
 
   // ---------- Trail planner ----------
