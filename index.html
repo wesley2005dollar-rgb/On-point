@@ -135,6 +135,15 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .ar-chips button[aria-pressed=true]{background:#fff;color:var(--ink);border-color:#fff}
 .ar-range{display:flex;align-items:center;gap:10px;font-size:13px}
 .ar-range input{flex:1}
+.ar-wind{position:absolute;left:12px;top:calc(var(--safe-t) + 78px);z-index:3;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.55);color:#fff;border-radius:14px;padding:8px 12px 8px 8px;pointer-events:none;max-width:78vw}
+.ar-wind svg{width:44px;height:44px;flex:none;transition:transform .25s ease-out}
+.ar-wind b{font-size:17px}
+.ar-wind small{display:block;font-size:12.5px;opacity:.85}
+.ar-windmark{position:absolute;z-index:2;transform:translate(-50%,-100%);pointer-events:none;display:flex;flex-direction:column;align-items:center}
+.ar-windmark span{background:rgba(30,127,216,.9);color:#fff;border-radius:10px;padding:4px 8px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.ar-windmark i{width:2px;height:16px;background:rgba(30,127,216,.9)}
+.ar-pinedge{position:absolute;top:66%;z-index:3;background:rgba(28,37,44,.8);color:#fff;border-radius:10px;padding:6px 10px;font-size:14px;font-weight:700;pointer-events:none;max-width:44vw;border-left:4px solid #E0287D}
+.ar-pinedge small{display:block;font-weight:400;font-size:12px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ar-horizon{position:absolute;left:0;right:0;height:0;border-top:1px dashed rgba(255,255,255,.35);z-index:1;pointer-events:none}
 .ar-tag{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;z-index:2;cursor:pointer}
 .ar-tag .pill{background:rgba(250,250,247,.94);color:var(--ink);border-radius:10px;padding:5px 9px;font-size:13px;line-height:1.2;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35);text-align:center}
@@ -369,6 +378,10 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <div class="ar-labels" id="arLabels"></div>
   <div class="ar-msg" id="arMsg"></div>
   <div class="ar-edge" id="arEdge" style="display:none"></div>
+  <div class="ar-pinedge" id="arPinL" style="display:none;left:10px"></div>
+  <div class="ar-pinedge" id="arPinR" style="display:none;right:10px;text-align:right"></div>
+  <div class="ar-wind" id="arWind" style="display:none"><svg viewBox="0 0 44 44" id="arWindArrow"><circle cx="22" cy="22" r="20" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.5)"/><path d="M22 6 L30 20 L24.5 18.5 L24.5 37 L19.5 37 L19.5 18.5 L14 20 Z" fill="#7FC4FF" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/></svg><div id="arWindTxt"></div></div>
+  <div class="ar-windmark" id="arWindMark" style="display:none"><span>💨 Wind comes from here</span><i></i></div>
   <div class="ar-top"><div><div class="hd" id="arHead">—</div><div class="sub" id="arSub">Point your phone at what you want to know</div></div><button id="arReload" aria-label="Reload labels" style="margin-left:auto">↻</button><button id="arClose" aria-label="Close camera view" style="margin-left:0">✕</button></div>
   <div class="ar-bot">
     <div class="ar-chips" id="arChips"></div>
@@ -572,7 +585,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 54 (shorter camera range)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 57 (whole-road routes)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -1196,6 +1209,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   let arOn=false,arStream=null,arRaf=0,arPois=[],arFetchedAt=null,arTowers=[],arTowersAt=null,arFovAdj=1;
   let arShow={peak:true,place:true,sight:true,local:true,road:true,pin:true,tower:false},arRangeMi=25;
   try{const v=JSON.parse(localStorage.getItem('onpoint.ar'));if(v){Object.assign(arShow,v.show||{});if(v.range)arRangeMi=v.range}}catch(e){}
+  try{if(localStorage.getItem('onpoint.pinsOn1')!=='1'){localStorage.setItem('onpoint.pinsOn1','1');arShow.pin=true}}catch(e){}
   function arSave(){try{localStorage.setItem('onpoint.ar',JSON.stringify({show:arShow,range:arRangeMi}))}catch(e){}}
   const bearingTo=(a,b)=>{const r=Math.PI/180,y=Math.sin((b.lng-a.lng)*r)*Math.cos(b.lat*r),
     x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lng-a.lng)*r);return (Math.atan2(y,x)/r+360)%360};
@@ -1450,7 +1464,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   // instead of 60 times a second (this is what bogged down with lots of nearby places).
   let arGeo=[],arGeoKey='',arDataVer=0,arLastDraw=0,arErrShown=false;
   function arRebuild(h){
-    const key=`${srch?srch.lat+','+srch.lng:''}|${me.lat.toFixed(5)},${me.lng.toFixed(5)}|${arDataVer}|${Object.entries(arShow).map(([k,v])=>v?k:'').join('')}|${arRangeMi}|${pins.length}`;
+    const key=`${srch?srch.lat+','+srch.lng:''}|${me.lat.toFixed(5)},${me.lng.toFixed(5)}|${arDataVer}|${Object.entries(arShow).map(([k,v])=>v?k:'').join('')}|${arRangeMi}|${pins.length}|${pins.reduce((a,p)=>a+(p.updated||p.created||0)%100000,0)}`;
     if(key===arGeoKey)return;
     arGeoKey=key;
     const max=arRangeMi*1609.34,list=[];
@@ -1464,7 +1478,9 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       // nearest 300 is plenty for one screen
       arLocal.map(p=>({p,d:haversine(me,p)})).sort((x,y)=>x.d-y.d).slice(0,300).forEach(x=>add(x.p));
     }
-    if(arShow.pin)pins.forEach(p=>add({type:'pin',name:p.title||'Pin',sub:'Your pin',lat:p.lat,lng:p.lng,ele:null,rank:0,color:p.color,id:p.id}));
+    if(arShow.pin)pins.forEach(p=>{const d=haversine(me,p);if(d<3)return;
+      list.push({p:{type:'pin',name:p.title||'Pin',sub:(p.note||'').split('\n')[0].slice(0,40),lat:p.lat,lng:p.lng,ele:null,hgt:2,rank:-2,color:p.color,id:p.id},
+        d,brg:bearingTo(me,p),score:-5+Math.log10(Math.max(d,10))/10})});
     if(arShow.tower)arTowers.forEach(add);
     if(srch){const d=haversine(me,srch);if(d>=5)list.push({p:{type:'search',name:srch.name,sub:'Searched',icon:'🔎',lat:srch.lat,lng:srch.lng,ele:srch.ele??null,hgt:6,rank:-3,color:'#E0287D'},d,brg:bearingTo(me,srch),score:-10})}
     arGeo=list;
@@ -1486,7 +1502,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v54 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v57 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1503,6 +1519,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     const f=arFov(),r=Math.PI/180;
     const yFor=el=>H/2-Math.tan((el-pose.pitch)*r)/f.ty*(H/2);
     $('arHorizon').style.top=yFor(0)+'px';
+    arWindDraw(h,f,yFor,W);
     arRebuild(h);
     const myAlt=me.alt,items=[];
     const place=(e)=>{
@@ -1539,7 +1556,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       }
       if(!ok)continue;
       const stem=Math.max(8,it.y-(top+hgt)),el=arTag(n);
-      const p=it.p,sub=(p.type==='local'||p.type==='road')?esc(p.sub)+' · ':'';
+      const p=it.p,sub=(p.type==='local'||p.type==='road'||(p.type==='pin'&&p.sub))?esc(p.sub)+' · ':'';
       const html=`<b>${p.icon||AR_TYPES[p.type].icon} ${esc(p.name)}</b>${sub}${fmtDist(it.d)}${p.ele!=null?' · '+Math.round(p.ele*3.28084).toLocaleString()+' ft':''}`;
       const pill=el.firstChild;
       if(pill._h!==html){pill.innerHTML=html;pill._h=html}
@@ -1550,6 +1567,14 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     }
     for(let i=n;i<arPool.length;i++)arPool[i].style.display='none';
     arDiag(pose,items.length,n);
+    // pins off to the sides: "◀ 3 pins" / "2 pins ▶"
+    let pl=0,pr=0,nl=null,nr=null;
+    if(arShow.pin&&me){const half=Math.atan(f.tx)*180/Math.PI;
+      for(const e of arGeo){if(e.p.type!=='pin')continue;const rel=angDiff(e.brg,h);
+        if(rel<-half){pl++;if(!nl||e.d<nl.d)nl=e}else if(rel>half){pr++;if(!nr||e.d<nr.d)nr=e}}}
+    const pinEdge=(el,n,e,left)=>{if(!n){el.style.display='none';return}el.style.display='';
+      el.innerHTML=left?`◀ ${n} pin${n>1?'s':''}<small>nearest: ${esc(e.p.name)} · ${fmtDist(e.d)}</small>`:`${n} pin${n>1?'s':''} ▶<small>nearest: ${esc(e.p.name)} · ${fmtDist(e.d)}</small>`};
+    pinEdge($('arPinL'),pl,nl,true);pinEdge($('arPinR'),pr,nr,false);
     // searched place off to the side: show which way to turn
     const edge=$('arEdge');
     if(srch&&me){
@@ -1568,7 +1593,9 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     return (c.length?c.join(' · '):(arLoading?'Finding places around you…'+secs:'No places loaded — tap ↻'))+(arBusy&&c.length?' · loading more…':'');
   }
   let arItems=[];
-  $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t||!t._item)return;const p=t._item.p;closeAR();startNav({name:p.name,sub:p.sub,icon:p.icon||AR_TYPES[p.type].icon,lat:p.lat,lng:p.lng,ele:p.ele})};
+  $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t||!t._item)return;const p=t._item.p;closeAR();
+    if(p.type==='road'){startRoadNav(p.name,p.sub,{lat:p.lat,lng:p.lng});return}
+    startNav({name:p.name,sub:p.sub,icon:p.icon||AR_TYPES[p.type].icon,lat:p.lat,lng:p.lng,ele:p.ele})};
   // ---------- Weather at the top ----------
   // Temperature, feels-like, wind direction & speed, gusts, humidity and conditions where you are
   // (Open-Meteo, free). Tap the row for the next 12 hours. Shows the last reading with no signal.
@@ -1632,6 +1659,28 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   new MutationObserver(liftFabs).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']});
   window.addEventListener('resize',liftFabs);
+
+  // ---------- Wind in the camera view ----------
+  // Arrow shows which way the wind is blowing relative to where you're pointing the phone
+  // (straight up = blowing the way you're looking), plus a marker on the horizon where it comes from.
+  let arWindRot=null;
+  function arWindDraw(h,f,yFor,W){
+    const box=$('arWind'),mark=$('arWindMark');
+    if(!wx||!wx.current){box.style.display='none';mark.style.display='none';if(navigator.onLine&&!wxAt)wxLoad(true);return}
+    const c=wx.current,from=c.wind_direction_10m,to=(from+180)%360,spd=Math.round(c.wind_speed_10m),gust=Math.round(c.wind_gusts_10m);
+    const rel=angDiff(to,h);                                    // where the wind goes, relative to your view
+    arWindRot=arWindRot==null?rel:arWindRot+angDiff(rel,arWindRot); // turn the short way
+    $('arWindArrow').style.transform=`rotate(${arWindRot}deg)`;
+    const a=Math.abs(rel);
+    const how=spd<1?'Calm':a<30?'At your back (blowing the way you face)':a>150?'In your face':rel>0?'Crossing left → right':'Crossing right → left';
+    const age=Math.round((Date.now()-wxAt)/60000);
+    $('arWindTxt').innerHTML=`<b>${spd} mph</b>${gust>spd+4?` <span style="opacity:.8">gusts ${gust}</span>`:''} · from ${card16(from)}<small>${how}${age>15?` · ${age<120?age+'m':Math.round(age/60)+'h'} old`:''}</small>`;
+    box.style.display='';
+    // horizon marker in the direction the wind comes from
+    const rf=angDiff(from,h),half=Math.atan(f.tx)*180/Math.PI;
+    if(spd>=1&&Math.abs(rf)<half){const x=W/2+Math.tan(rf*Math.PI/180)/f.tx*(W/2);mark.style.left=x.toFixed(0)+'px';mark.style.top=(yFor(0)-4).toFixed(0)+'px';mark.style.display=''}
+    else mark.style.display='none';
+  }
 
   // ---------- Pencil button (bottom bar): pick Draw or Measure ----------
   $('toolBtn').onclick=()=>{
@@ -2390,7 +2439,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       <div class="coords">${esc(r.sub||'')}${dd?' · '+dd:''}</div>
       <div class="row"><button class="b-primary" id="scRoute">Route there</button><button class="b-flag" id="scCam">📷 See in camera</button></div>
       <div class="row" style="margin-top:10px"><button class="b-ghost" id="scPin">⚑ Pin it</button><button class="b-ghost" id="scNew">🔍 New search</button><button class="b-ghost" id="scClr">✕ Clear</button></div>`);
-    $('scRoute').onclick=()=>{closeSheet();startNav({name:r.name,sub:r.sub,icon:r.icon||'🔎',lat:r.lat,lng:r.lng})};
+    $('scRoute').onclick=()=>{closeSheet();if(r.icon==='🛣'||/^Road\b/.test(r.sub||'')){startRoadNav(r.name,r.sub,{lat:r.lat,lng:r.lng});return}startNav({name:r.name,sub:r.sub,icon:r.icon||'🔎',lat:r.lat,lng:r.lng})};
     $('scCam').onclick=()=>{closeSheet();openAR();toast('Look for the pink 🔎 label — arrows show which way to turn')};
     $('scPin').onclick=()=>{newPinAt(r.lat,r.lng,r.name);closeSheet()};
     $('scNew').onclick=showSearch;
@@ -2421,6 +2470,11 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
         if(last&&Math.abs(p.x-last.x)+Math.abs(p.y-last.y)<1.5)continue;d+=(last?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);last=p}return d};
     let h=hasT?ownSvg(pathOf,P)+propSvg(pathOf)+skSvg(pathOf)+trkSvg(pathOf,P)+msSvg(pathOf,P):'';
     if(!nav){svg.innerHTML=h;return}
+    if(nav&&nav.roadSegs){
+      const flat=[];nav.roadSegs.forEach(sg=>{sg.forEach(q=>flat.push(q));flat.push(null)});
+      const d=pathOf(flat);
+      if(d)h+=`<path d="${d}" fill="none" stroke="#1C252C" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/><path d="${d}" fill="none" stroke="#FFC400" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".95"/>`;
+    }
     if(navRoutePts&&navRoutePts.length>1){
       const d=pathOf(navRoutePts);
       h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
@@ -2443,6 +2497,51 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   map.on('move zoom rotate viewreset resize moveend zoomend rotateend',navRedraw);
   map.on('zoomanim',()=>{if(nav||trkHas()||skHas()||msHas())$('navSvg').style.opacity=0});
   map.on('zoomend',()=>{$('navSvg').style.opacity=1});
+  // ---- Roads: highlight the whole road, route to its nearest point ----
+  function roadSegsFromPts(pts){
+    // saved roads are one list of points; split where it jumps (a separate stretch of the same road)
+    const segs=[];let cur=[];
+    pts.forEach(q=>{const ll=Array.isArray(q)?{lat:q[0],lng:q[1]}:q;
+      if(cur.length&&haversine(cur[cur.length-1],ll)>120){if(cur.length>1)segs.push(cur);cur=[]}cur.push(ll)});
+    if(cur.length>1)segs.push(cur);
+    return segs.map(sg=>sg.map(q=>[q.lat,q.lng]));
+  }
+  function closestOnRoad(segs,pt){
+    const k=Math.cos(pt.lat*Math.PI/180),X=q=>[(q[1]-pt.lng)*k*111320,(q[0]-pt.lat)*110540];
+    let best=null,bd=1e18;
+    for(const sg of segs)for(let i=0;i<sg.length-1;i++){
+      const a=X(sg[i]),b=X(sg[i+1]),dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy;
+      let t=L2?-(a[0]*dx+a[1]*dy)/L2:0;t=Math.max(0,Math.min(1,t));
+      const x=a[0]+dx*t,y=a[1]+dy*t,d=x*x+y*y;
+      if(d<bd){bd=d;best={lat:sg[i][0]+(sg[i+1][0]-sg[i][0])*t,lng:sg[i][1]+(sg[i+1][1]-sg[i][1])*t}}
+    }
+    return best;
+  }
+  async function roadGeometry(name,near){
+    let segs=[];
+    const local=arRoads.find(r=>r.name===name);if(local)segs=roadSegsFromPts(local.pts);
+    if(navigator.onLine&&near){
+      // fetch the whole road (about 10 miles each way) so it can be highlighted end to end
+      const m=String(name).match(/^(GA|US|SR)\s*(\d+)/i),bb=bboxOf(near.lat,near.lng,16000);
+      const nm=String(name).replace(/["\\]/g,'');
+      const q=m?`[out:json][timeout:20][bbox:${bb}];way["highway"]["ref"~"(^|;)\\\\s*(SR|GA|US)[ -]?${m[2]}\\\\s*($|;)"];out geom;`
+               :`[out:json][timeout:20][bbox:${bb}];way["highway"]["name"="${nm}"];out geom;`;
+      try{const d=await overpass(q,20000);
+        const got=(d.elements||[]).filter(w=>w.geometry).map(w=>w.geometry.filter(Boolean).map(g=>[g.lat,g.lon]));
+        if(got.length)segs=got;
+      }catch(e){}
+    }
+    return segs;
+  }
+  async function startRoadNav(name,sub,near){
+    toast(`Finding ${name}…`);
+    const segs=await roadGeometry(name,near);
+    if(!segs.length||!me){startNav({name,sub,icon:'🛣',lat:near.lat,lng:near.lng});return}
+    const c=closestOnRoad(segs,me)||near;
+    let len=0;segs.forEach(sg=>{for(let i=1;i<sg.length;i++)len+=haversine({lat:sg[i-1][0],lng:sg[i-1][1]},{lat:sg[i][0],lng:sg[i][1]})});
+    startNav({name,sub:`Nearest point of the road · ${fmtDist(len)} of road shown`,icon:'🛣',lat:c.lat,lng:c.lng,roadSegs:segs});
+  }
+
   function startNav(t){
     nav=t;navRouteFrom=null;navRoutePts=null;navGap=null;
     $('navName').textContent=`${t.icon||'📍'} ${t.name}`;
@@ -2451,13 +2550,20 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     $('navcard').classList.add('show');document.querySelector('.dock').style.display='none';
     follow=false;$('locBtn').classList.remove('on');
     navUpdate();
-    if(me)map.fitBounds(L.latLngBounds([[me.lat,me.lng],[t.lat,t.lng]]),{paddingTopLeft:[40,110],paddingBottomRight:[40,Math.round(innerHeight*.42)],maxZoom:17});
+    const fitPts=[[t.lat,t.lng]];if(me)fitPts.push([me.lat,me.lng]);
+    if(t.roadSegs)t.roadSegs.forEach(sg=>sg.forEach((q,i)=>{if(i%5===0)fitPts.push(q)}));
+    if(fitPts.length>1)map.fitBounds(L.latLngBounds(fitPts),{paddingTopLeft:[40,110],paddingBottomRight:[40,Math.round(innerHeight*.42)],maxZoom:17});
     else map.setView([t.lat,t.lng],15);
     navRoute();navRedraw();
   }
   function navUpdate(){
     if(!nav)return;
     if(!me){$('navStraight').textContent='Waiting for GPS…';return}
+    if(nav.roadSegs&&(!nav._at||haversine(me,nav._at)>30)){
+      nav._at={lat:me.lat,lng:me.lng};const c=closestOnRoad(nav.roadSegs,me);
+      if(c){const moved=haversine(c,nav);nav.lat=c.lat;nav.lng=c.lng;
+        if(moved>150&&navRoutePts&&Date.now()-navLastRoute>20000)navRoute()}
+    }
     const d=haversine(me,nav),brg=bearingTo(me,nav);
     $('navStraight').textContent=`${fmtDist(d)} ${CARD[Math.round(brg/22.5)%16]}`;
     if(navRouteFrom&&haversine(me,navRouteFrom)>250&&Date.now()-navLastRoute>20000)navRoute();
