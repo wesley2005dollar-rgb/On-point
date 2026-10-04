@@ -193,6 +193,15 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .sres .s{font-size:13px;color:var(--muted);display:block}
 .sres .d{margin-left:auto;font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap}
 .srch-pin{width:30px;height:42px}
+.ropt{width:100%;text-align:left;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:9px 11px;margin:6px 0;display:block}
+.ropt[aria-pressed=true]{border-color:#1E7FD8;box-shadow:inset 0 0 0 1.5px #1E7FD8}
+.ropt .top1{display:flex;align-items:center;gap:8px}
+.ropt .big{font:700 22px/1 'Barlow Condensed','Arial Narrow',sans-serif}
+.ropt .lvl{border-radius:7px;padding:2px 7px;font-size:12.5px;font-weight:700;color:#fff;margin-left:auto}
+.ropt .why{font-size:13px;color:var(--muted);line-height:1.35;margin-top:3px}
+.ropt .letter{width:22px;height:22px;border-radius:50%;background:#7A8590;color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;flex:none}
+.ropt[aria-pressed=true] .letter{background:#1E7FD8}
+.leavelater{background:#E9F5EC;border:1.5px solid #B9DFC4;color:#1D5B33;border-radius:12px;padding:8px 10px;font-size:14px;margin:4px 0}
 .tripwarn{background:#FDECEA;border:1.5px solid #F2B8B5;color:#7A1C17;border-radius:12px;padding:8px 10px;margin:6px 0;font-size:14px;line-height:1.35}
 .tripwarn b{display:block;font-size:15px}
 .tripnext{display:flex;gap:8px;margin:6px 0}
@@ -353,6 +362,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     <div class="nstat"><small>Straight line</small><b id="navStraight">—</b></div>
     <div class="nstat"><small id="navRouteLbl">By road</small><b id="navRoute">—</b></div>
   </div>
+  <div id="navOpts" style="display:none"></div>
   <div id="navTrip" style="display:none"></div>
   <div id="navTrail" style="display:none"></div>
   <div class="seg" id="navMode"><button data-m="car" aria-pressed="true">🚗 Drive</button><button data-m="foot" aria-pressed="false">🚶 Walk</button><button data-m="bike" aria-pressed="false">🚲 Bike</button></div>
@@ -633,7 +643,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 62 (turn-by-turn)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 65 (smart search)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -1518,7 +1528,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   // instead of 60 times a second (this is what bogged down with lots of nearby places).
   let arGeo=[],arGeoKey='',arDataVer=0,arLastDraw=0,arErrShown=false;
   function arRebuild(h){
-    const key=`${srch?srch.lat+','+srch.lng:''}|${me.lat.toFixed(5)},${me.lng.toFixed(5)}|${arDataVer}|${Object.entries(arShow).map(([k,v])=>v?k:'').join('')}|${arRangeMi}|${pins.length}|${pins.reduce((a,p)=>a+(p.updated||p.created||0)%100000,0)}`;
+    const key=`${srchMulti.length}|${srch?srch.lat+','+srch.lng:''}|${me.lat.toFixed(5)},${me.lng.toFixed(5)}|${arDataVer}|${Object.entries(arShow).map(([k,v])=>v?k:'').join('')}|${arRangeMi}|${pins.length}|${pins.reduce((a,p)=>a+(p.updated||p.created||0)%100000,0)}`;
     if(key===arGeoKey)return;
     arGeoKey=key;
     const max=arRangeMi*1609.34,list=[];
@@ -1536,6 +1546,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       list.push({p:{type:'pin',name:p.title||'Pin',sub:(p.note||'').split('\n')[0].slice(0,40),lat:p.lat,lng:p.lng,ele:null,hgt:2,rank:-2,color:p.color,id:p.id},
         d,brg:bearingTo(me,p),score:-5+Math.log10(Math.max(d,10))/10})});
     if(arShow.tower)arTowers.forEach(add);
+    srchMulti.forEach(r=>{if(srch&&r.lat===srch.lat&&r.lng===srch.lng)return;const d=haversine(me,r);if(d>=5)list.push({p:{type:'search',name:r.name,sub:r.sub,icon:r.icon,lat:r.lat,lng:r.lng,ele:null,hgt:5,rank:-2,color:'#E0287D'},d,brg:bearingTo(me,r),score:-4+Math.log10(Math.max(d,10))})});
     if(srch){const d=haversine(me,srch);if(d>=5)list.push({p:{type:'search',name:srch.name,sub:'Searched',icon:'🔎',lat:srch.lat,lng:srch.lng,ele:srch.ele??null,hgt:6,rank:-3,color:'#E0287D'},d,brg:bearingTo(me,srch),score:-10})}
     arGeo=list;
   }
@@ -1558,7 +1569,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v62 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v65 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1752,7 +1763,8 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
         <button id="tProp" style="grid-column:1/-1"><span style="font-size:28px;line-height:1">🏠</span>Who owns this?<small>Tap any spot to look up the property and owner</small></button>
       </div>`);
     $('tDraw').onclick=()=>{closeSheet();if(ms.on)msClose();skOpen()};
-    $('tMeasure').onclick=()=>{closeSheet();if(skOn)skClose();msOpen()};
+    $('tMeasure').onclick=()=>{closeSheet();if(onTrip()){toast('Measure is off while you’re on a trip');return}if(skOn)skClose();msOpen()};
+    if(onTrip())$('tMeasure').style.display='none';
     $('tProp').onclick=()=>{closeSheet();if(skOn)skClose();if(ms.on)msClose();propOpen()};
     $('tTrail').onclick=()=>{closeSheet();if(skOn)skClose();if(ms.on)msClose();showTrails()};
   };
@@ -2461,21 +2473,137 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function srchCoords(q){const m=q.match(/^\s*(-?\d{1,2}\.\d+)\s*[, ]\s*(-?\d{1,3}\.\d+)\s*$/);return m?{name:`${(+m[1]).toFixed(5)}, ${(+m[2]).toFixed(5)}`,sub:'Coordinates',icon:'📌',lat:+m[1],lng:+m[2]}:null}
   function srchRows(list){
-    return list.map((r,i)=>`<li><button data-i="${i}"><span class="ic">${r.icon}</span><span style="min-width:0"><span class="t">${esc(r.name)}</span><span class="s">${esc(r.sub||'')}</span></span><span class="d">${me?fmtDist(haversine(me,r)):''}</span></button></li>`).join('');
+    return list.map((r,i)=>`<li><button data-i="${i}"><span class="ic">${r.icon}</span><span style="min-width:0"><span class="t">${esc(r.name)}</span><span class="s">${esc([r.sub,r.addr,r.hours?(r.hours==='24/7'?'Open 24/7':r.hours.slice(0,38)):''].filter(Boolean).join(' · '))}</span></span><span class="d">${me?fmtDist(haversine(me,r)):''}</span></button></li>`).join('');
   }
   let srchList=[];
+  // ---- "Search engine": plain words → kinds of places near you ----
+  // "tools near me" → hardware stores; "generator" → stores that sell or rent them; "camping" →
+  // campgrounds; "trails" → the trail planner. Built from OpenStreetMap place types and store brands.
+  // It finds places that USUALLY carry an item — it can't see a store's stock, so call ahead.
+  const CATS={
+    hardware:{label:'Hardware & tool stores',icon:'🔧',f:['nwr["shop"~"^(hardware|doityourself|tools|trade|tool_hire)$"]'],
+      brands:["Home Depot","The Home Depot","Lowe's","Harbor Freight","Ace Hardware","True Value","Northern Tool","Do it Best","Menards"]},
+    rental:{label:'Equipment rental',icon:'🏗',f:['nwr["shop"="tool_hire"]','nwr["amenity"="equipment_rental"]'],brands:["Sunbelt Rentals","United Rentals","Herc Rentals"]},
+    autoparts:{label:'Auto parts',icon:'🔩',f:['nwr["shop"~"^(car_parts|tyres|motorcycle)$"]'],brands:["AutoZone","O'Reilly Auto Parts","Advance Auto Parts","NAPA Auto Parts","Carquest"]},
+    repair:{label:'Mechanics & towing',icon:'🛠',f:['nwr["shop"="car_repair"]','nwr["service"="towing"]'],brands:[]},
+    farm:{label:'Farm & feed stores',icon:'🚜',f:['nwr["shop"~"^(agrarian|farm|garden_centre|country_store)$"]'],brands:["Tractor Supply","Tractor Supply Co.","Rural King","Southern States"]},
+    big:{label:'Big-box & general stores',icon:'🏬',f:['nwr["shop"~"^(department_store|general|variety_store|wholesale)$"]'],brands:["Walmart","Walmart Supercenter","Target","Dollar General","Family Dollar","Costco","Sam's Club"]},
+    outdoor:{label:'Outdoor, hunting & fishing',icon:'🎣',f:['nwr["shop"~"^(outdoor|sports|hunting|fishing|weapons)$"]'],brands:["Academy Sports + Outdoors","Bass Pro Shops","Cabela's","Dick's Sporting Goods"]},
+    camping:{label:'Campgrounds & RV parks',icon:'⛺',f:['nwr["tourism"~"^(camp_site|caravan_site)$"]'],brands:[]},
+    food:{label:'Restaurants',icon:'🍴',f:['nwr["amenity"~"^(restaurant|fast_food|cafe)$"]'],brands:[]},
+    grocery:{label:'Groceries & convenience',icon:'🛒',f:['nwr["shop"~"^(supermarket|convenience|grocery)$"]'],brands:[]},
+    gas:{label:'Gas stations',icon:'⛽',f:['nwr["amenity"="fuel"]'],brands:[]},
+    propane:{label:'Propane refills',icon:'🔥',f:['nwr["shop"="gas"]','nwr["fuel:lpg"="yes"]','nwr["fuel:propane"="yes"]'],brands:["Blue Rhino","AmeriGas","U-Haul"]},
+    lodging:{label:'Hotels & motels',icon:'🛏',f:['nwr["tourism"~"^(hotel|motel|guest_house)$"]'],brands:[]},
+    medical:{label:'Hospitals & urgent care',icon:'🏥',f:['nwr["amenity"~"^(hospital|clinic|doctors)$"]','nwr["healthcare"~"^(hospital|clinic|urgent_care)$"]'],brands:[]},
+    pharmacy:{label:'Pharmacies',icon:'💊',f:['nwr["amenity"="pharmacy"]'],brands:["CVS Pharmacy","Walgreens"]},
+    atm:{label:'ATMs & banks',icon:'🏧',f:['nwr["amenity"~"^(atm|bank)$"]'],brands:[]},
+    restroom:{label:'Restrooms',icon:'🚻',f:['nwr["amenity"="toilets"]','nwr["highway"="rest_area"]'],brands:[]},
+    boat:{label:'Boat ramps & fishing spots',icon:'🚤',f:['nwr["leisure"~"^(slipway|fishing)$"]'],brands:[]},
+    park:{label:'Parks',icon:'🌳',f:['nwr["leisure"~"^(park|nature_reserve)$"]["name"]'],brands:[]},
+    electronics:{label:'Electronics & phone stores',icon:'📱',f:['nwr["shop"~"^(electronics|mobile_phone|computer)$"]'],brands:["Best Buy"]},
+    laundry:{label:'Laundromats',icon:'🧺',f:['nwr["shop"~"^(laundry|dry_cleaning)$"]'],brands:[]},
+    vet:{label:'Vets & pet stores',icon:'🐾',f:['nwr["amenity"="veterinary"]','nwr["shop"="pet"]'],brands:["PetSmart","Petco"]},
+    post:{label:'Post offices & shipping',icon:'📮',f:['nwr["amenity"="post_office"]','nwr["shop"="copyshop"]'],brands:["UPS Store","The UPS Store","FedEx Office"]},
+    police:{label:'Police & fire',icon:'🚓',f:['nwr["amenity"~"^(police|fire_station)$"]'],brands:[]},
+  };
+  // words → which kinds of places to look in (first = best match)
+  const WORDS=[
+    [/\b(generators?|power ?washers?|pressure ?washers?|air ?compressors?|log ?splitters?)\b/,['hardware','rental','farm','big']],
+    [/\b(chainsaws?|weed ?eaters?|trimmers?|mowers?|lawn ?mowers?)\b/,['hardware','farm','big']],
+    [/\b(tools?|hardware|drills?|saws?|wrench(es)?|lumber|nails|screws|ladders?|paint|plumbing|pipes?|fittings?|fenc(e|ing)|wire|shovels?|tarps?|rope|chains?|bolts?|duct tape|extension cords?|batter(y|ies) charger)\b/,['hardware','big','farm']],
+    [/\b(rent(al)?s?|excavator|skid ?steer|lift|trailer rental|bobcat)\b/,['rental','hardware']],
+    [/\b(auto ?parts|car ?parts|parts store|batter(y|ies)|alternators?|brakes?|oil|filters?|spark ?plugs?|wipers?|coolant|antifreeze|headlights?|fuses?|belts?)\b/,['autoparts','big']],
+    [/\b(tires?|flat)\b/,['autoparts','repair']],
+    [/\b(mechanic|repair|tow(ing)?|wrecker|body shop|stuck|broke ?down)\b/,['repair','autoparts']],
+    [/\b(feed|seed|fertili[sz]er|livestock|hay|chicken|farm|garden|plants?|mulch|fencing supplies|horse)\b/,['farm','hardware']],
+    [/\b(camp(ing|ground|grounds|site|sites)?|rv ?park|tent ?site)\b/,['camping']],
+    [/\b(tents?|sleeping ?bags?|coolers?|camp(ing)? (gear|stove|chairs?)|lanterns?|flashlights?)\b/,['outdoor','big','hardware']],
+    [/\b(hunt(ing)?|ammo|ammunition|guns?|rifles?|shotguns?|deer|bait|tackle|fishing (gear|line|pole|rod)|lures?|waders?|license)\b/,['outdoor','big']],
+    [/\b(boat ?ramps?|boat launch|launch|fishing spots?|pier|dock)\b/,['boat']],
+    [/\b(food|eat|restaurants?|hungry|burgers?|pizza|breakfast|lunch|dinner|coffee|bbq|barbecue|chicken|tacos?|wings?)\b/,['food']],
+    [/\b(groceries|grocery|store|milk|bread|ice|snacks?|drinks?|water|beer|cigarettes?)\b/,['grocery','big']],
+    [/\b(gas|fuel|diesel|gas station)\b/,['gas']],
+    [/\b(propane|lp|lpg|tank (refill|exchange))\b/,['propane','hardware','gas']],
+    [/\b(hotels?|motels?|room|stay|lodging|sleep|inn)\b/,['lodging','camping']],
+    [/\b(hospital|er|emergency|doctor|clinic|urgent ?care|hurt|injur(y|ed))\b/,['medical','pharmacy']],
+    [/\b(pharmacy|medicine|meds|prescription|drug ?store|first ?aid)\b/,['pharmacy','big']],
+    [/\b(atm|cash|bank|money)\b/,['atm']],
+    [/\b(restrooms?|bathrooms?|toilets?|rest ?stops?)\b/,['restroom','gas']],
+    [/\b(parks?|playground|picnic)\b/,['park']],
+    [/\b(phones?|chargers?|electronics|cables?|computers?)\b/,['electronics','big']],
+    [/\b(laundry|laundromat|wash clothes)\b/,['laundry']],
+    [/\b(vet|veterinar(y|ian)|pet ?(store|food)|dog food|cat food)\b/,['vet','farm','big']],
+    [/\b(post office|mail|ship(ping)?|ups|fedex|usps)\b/,['post']],
+    [/\b(police|sheriff|fire station)\b/,['police']],
+    [/\b(walmart|dollar general|target|department store)\b/,['big']],
+  ];
+  function detectCats(q){
+    q=q.toLowerCase().replace(/\bnear (me|here|by)\b|\bnearby\b|\bclose\b|\baround here\b|\bi need( a| an| some)?\b|\bwhere (can i|to) (get|buy|find)( a| an| some)?\b|\bfind( me)?( a| an)?\b/g,' ').trim();
+    if(/\b(trails?|hik(e|es|ing)|walking paths?)\b/.test(q))return {trail:true};
+    for(const [re,cats] of WORDS)if(re.test(q))return {cats,item:q};
+    return null;
+  }
+  async function catSearch(cats,radiusM){
+    const c=me||map.getCenter(),bb=bboxOf(c.lat,c.lng,radiusM);
+    const parts=[];
+    cats.forEach(k=>{const C=CATS[k];C.f.forEach(f=>parts.push(f+';'));
+      if(C.brands.length)parts.push(`nwr["brand"~"^(${C.brands.map(b=>b.replace(/[.*+?^${}()|[\]\\"]/g,'\\\\$&')).join('|')})$",i];`,`nwr["name"~"^(${C.brands.map(b=>b.replace(/[.*+?^${}()|[\]\\"]/g,'\\\\$&')).join('|')})",i]["shop"];`)});
+    const q=`[out:json][timeout:25][bbox:${bb}];(${parts.join('')});out center tags 250;`;
+    const d=await overpass(q,30000);
+    const out=[],seen=new Set();
+    for(const el of d.elements||[]){
+      const t=el.tags||{},lat=el.lat??(el.center&&el.center.lat),lng=el.lon??(el.center&&el.center.lon);if(lat==null)continue;
+      // which category did it come from?
+      let cat=cats.find(k=>{const C=CATS[k];return C.brands.some(b=>(t.brand||t.name||'').toLowerCase().startsWith(b.toLowerCase()))})||
+        cats.find(k=>CATS[k].f.some(f=>{const m=f.match(/\["(\w[\w:]*)"(=|~)"([^"]+)"\]/);if(!m)return false;const v=t[m[1]];if(v==null)return false;return m[2]==='='?v===m[3]:new RegExp(m[3]).test(v)}))||cats[0];
+      const name=t.name||t.brand||CATS[cat].label.replace(/s$/,'');
+      const key=name+'|'+lat.toFixed(3)+lng.toFixed(3);if(seen.has(key))continue;seen.add(key);
+      const addr=[t['addr:housenumber']&&t['addr:street']?t['addr:housenumber']+' '+t['addr:street']:t['addr:street'],t['addr:city']].filter(Boolean).join(', ');
+      out.push({name,icon:CATS[cat].icon,cat,sub:CATS[cat].label.replace(/s &.*|s$/,''),lat,lng,phone:t.phone||t['contact:phone']||'',
+        hours:t.opening_hours||'',addr,web:t.website||t['contact:website']||'',d:haversine(c,{lat,lng}),rank:cats.indexOf(cat)});
+    }
+    return out.sort((a,b)=>a.d-b.d);
+  }
+  let srchMulti=[],srchMultiLayer=L.layerGroup().addTo(map);
+  function srchShowAll(list,label){
+    srchMultiLayer.clearLayers();srchMulti=list.slice(0,60);arGeoKey='';
+    srchMulti.forEach(r=>L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',iconSize:[30,30],iconAnchor:[15,15],
+      html:`<div style="width:30px;height:30px;border-radius:50%;background:#E0287D;border:2.5px solid #fff;display:grid;place-items:center;font-size:15px;box-shadow:0 1px 5px rgba(0,0,0,.4)">${r.icon}</div>`}),zIndexOffset:2400})
+      .addTo(srchMultiLayer).on('click',()=>srchPick(r)));
+    if(srchMulti.length){const pts=srchMulti.map(r=>[r.lat,r.lng]);if(me)pts.push([me.lat,me.lng]);
+      follow=false;$('locBtn').classList.remove('on');map.fitBounds(L.latLngBounds(pts),{padding:[50,140],maxZoom:15})}
+    toast(`${srchMulti.length} ${label} on the map`);
+  }
+
   function showSearch(){
     openSheet(`<h2 id="sheetTitle">Search</h2>
-      <input type="text" id="sQ" placeholder="Place, address, road, or your pin" autocomplete="off" enterkeyhint="search" style="margin-top:6px">
+      <input type="text" id="sQ" placeholder="Search a place, or what you need (tools, camping, generator…)" autocomplete="off" enterkeyhint="search" style="margin-top:6px">
       ${srch?`<div class="row" style="margin-top:8px"><button class="b-ghost" id="sClear">✕ Clear “${esc(srch.name.slice(0,24))}”</button></div>`:''}
       <ul class="sres" id="sRes"></ul><p class="fine" id="sNote"></p>`);
     const q=$('sQ');setTimeout(()=>q.focus(),250);
     if($('sClear'))$('sClear').onclick=()=>{srchClear();closeSheet()};
     const run=async()=>{
       const v=q.value.trim(),seq=++srchSeq;if(v.length<2){$('sRes').innerHTML='';$('sNote').textContent='';return}
-      const co=srchCoords(v),loc=localMatches(v);
+      const co=srchCoords(v),loc=localMatches(v),cat=co?null:detectCats(v);
       srchList=[...(co?[co]:[]),...loc];$('sRes').innerHTML=srchRows(srchList);
       if(co)return;
+      if(cat&&cat.trail){$('sNote').innerHTML='<button class="opt" id="sTrails"><span><span class="ot">🥾 Find trails near you</span><span class="od">Opens the trail planner</span></span></button>';
+        $('sTrails').onclick=()=>{closeSheet();showTrails()};}
+      if(cat&&cat.cats&&navigator.onLine){
+        $('sNote').textContent=`Looking for ${cat.cats.map(k=>CATS[k].label.toLowerCase()).slice(0,3).join(', ')} near you…`;
+        let found=[];
+        try{found=await catSearch(cat.cats,25000);if(found.length<4)found=await catSearch(cat.cats,60000)}catch(e){}
+        if(seq!==srchSeq)return;
+        if(found.length){
+          srchList=[...found.slice(0,40),...loc];
+          $('sRes').innerHTML=`<li style="padding:6px 2px"><button class="b-flag" id="sAll" style="width:100%;height:44px;border-radius:12px;font-weight:600">📍 Show all ${found.length} on the map & camera</button></li>`+srchRows(srchList);
+          $('sAll').onclick=()=>{closeSheet();srchShowAll(found,cat.cats.length>1?'places':CATS[cat.cats[0]].label.toLowerCase())};
+          const itemy=WORDS.slice(0,4).some(([re])=>re.test(v.toLowerCase()))||/\b(tents?|ammo|batter|tires?|oil|propane|chargers?|feed|bait)\b/.test(v.toLowerCase());
+          $('sNote').textContent=(itemy?'These are stores that usually carry or rent it — call ahead to check stock. ':'')+'Nearest first.';
+          return;
+        }
+      }
       if(!navigator.onLine){$('sNote').textContent=loc.length?'No signal — showing your pins and saved places.':'No signal — only your pins and saved places can be searched.';return}
       $('sNote').textContent='Searching…';
       const on=await onlineSearch(v);if(seq!==srchSeq)return;
@@ -2489,7 +2617,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     $('sRes').onclick=e=>{const b=e.target.closest('[data-i]');if(b)srchPick(srchList[+b.dataset.i])};
   }
   function srchPick(r){
-    srch={name:r.name,sub:r.sub,icon:r.icon,lat:r.lat,lng:r.lng,ele:r.ele};
+    srch={name:r.name,sub:r.sub,icon:r.icon,lat:r.lat,lng:r.lng,ele:r.ele,phone:r.phone,hours:r.hours,addr:r.addr,web:r.web};
     try{localStorage.setItem('onpoint.srch',JSON.stringify(srch))}catch(e){}
     if(srchMarker)map.removeLayer(srchMarker);
     srchMarker=L.marker([r.lat,r.lng],{icon:srchIcon,zIndexOffset:2500}).addTo(map).on('click',()=>srchCard());
@@ -2502,6 +2630,8 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     const dd=me?`${fmtDist(haversine(me,r))} ${CARD[Math.round(bearingTo(me,r)/22.5)%16]}`:'';
     openSheet(`<h2 id="sheetTitle">${r.icon||'🔎'} ${esc(r.name)}</h2>
       <div class="coords">${esc(r.sub||'')}${dd?' · '+dd:''}</div>
+      ${r.addr||r.hours?`<p class="fine" style="margin:0 0 8px">${esc(r.addr||'')}${r.addr&&r.hours?'<br>':''}${r.hours?'Hours: '+esc(r.hours):''}</p>`:''}
+      ${r.phone||r.web?`<div class="row" style="margin:0 0 10px">${r.phone?`<a class="b-ghost" href="tel:${esc(r.phone.replace(/[^\d+]/g,''))}" style="flex:1;display:grid;place-items:center;height:46px;border-radius:12px;text-decoration:none;color:inherit;font-weight:600">📞 Call</a>`:''}${r.web?`<a class="b-ghost" href="${esc(r.web)}" target="_blank" rel="noopener" style="flex:1;display:grid;place-items:center;height:46px;border-radius:12px;text-decoration:none;color:inherit;font-weight:600">🌐 Website</a>`:''}</div>`:''}
       <div class="row"><button class="b-primary" id="scRoute">Route there</button><button class="b-flag" id="scCam">📷 See in camera</button></div>
       <div class="row" style="margin-top:10px"><button class="b-ghost" id="scPin">⚑ Pin it</button><button class="b-ghost" id="scNew">🔍 New search</button><button class="b-ghost" id="scClr">✕ Clear</button></div>`);
     $('scRoute').onclick=()=>{closeSheet();if(r.icon==='🥾'){planTrail({type:'way',name:r.name,tags:{},lat:r.lat,lng:r.lng,dist:0});return}
@@ -2511,7 +2641,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     $('scNew').onclick=showSearch;
     $('scClr').onclick=()=>{srchClear();closeSheet()};
   }
-  function srchClear(){srch=null;arGeoKey='';try{localStorage.removeItem('onpoint.srch')}catch(e){}if(srchMarker){map.removeLayer(srchMarker);srchMarker=null}toast('Search cleared')}
+  function srchClear(){srch=null;srchMulti=[];srchMultiLayer.clearLayers();arGeoKey='';try{localStorage.removeItem('onpoint.srch')}catch(e){}if(srchMarker){map.removeLayer(srchMarker);srchMarker=null}toast('Search cleared')}
   $('searchBtn').onclick=showSearch;
   // keep the last search after reopening the app
   try{const v=JSON.parse(localStorage.getItem('onpoint.srch'));if(v&&typeof v.lat==='number'){srch=v;srchMarker=L.marker([v.lat,v.lng],{icon:srchIcon,zIndexOffset:2500}).addTo(map).on('click',()=>srchCard())}}catch(e){}
@@ -2560,6 +2690,18 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       const d=pathOf(flat);
       if(d)h+=`<path d="${d}" fill="none" stroke="#1C252C" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/><path d="${d}" fill="none" stroke="#FFC400" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".95"/>`;
     }
+    if(navAlts&&navAlts.length>1&&!tbtOn){
+      navAlts.forEach((o,k)=>{if(o===navSel)return;const d=pathOf(o.pts);if(!d)return;
+        h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/><path d="${d}" fill="none" stroke="#8C99A6" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
+        // option letter + time on its own stretch (a point far from the chosen route)
+        let lab=o.pts[Math.floor(o.pts.length/2)],best=-1;
+        for(let i=0;i<o.pts.length;i+=Math.max(1,Math.floor(o.pts.length/60))){const q=o.pts[i];let m=1e9;
+          for(let j=0;j<navRoutePts.length;j+=Math.max(1,Math.floor(navRoutePts.length/120))){const r2=navRoutePts[j];m=Math.min(m,Math.abs(q[0]-r2[0])+Math.abs(q[1]-r2[1]))}
+          if(m>best){best=m;lab=q}}
+        const pp=P(lab),t=`${'ABCD'[k]} · ${fmtDur(o.est.total)}`,w=t.length*7+14;
+        h+=`<g transform="translate(${pp.x.toFixed(1)},${pp.y.toFixed(1)})"><rect x="${(-w/2).toFixed(1)}" y="-11" width="${w.toFixed(1)}" height="22" rx="7" fill="#fff" stroke="#8C99A6" stroke-width="1.5"/><text y="4.5" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12.5" fill="#34444F">${t}</text></g>`;
+      });
+    }
     if(navRoutePts&&navRoutePts.length>1){
       const d=pathOf(navRoutePts);
       h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
@@ -2582,6 +2724,95 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   map.on('move zoom rotate viewreset resize moveend zoomend rotateend',navRedraw);
   map.on('zoomanim',()=>{if(nav||trkHas()||skHas()||msHas())$('navSvg').style.opacity=0});
   map.on('zoomend',()=>{$('navSvg').style.opacity=1});
+  // ---------- Route options with traffic estimates ----------
+  // Free routing has no live traffic, so this ESTIMATES it from the time of day, the day of the
+  // week, and which city areas the route goes through (and when you'd reach them) — e.g. Atlanta at
+  // 5 PM on a weekday is heavy, school let-out adds a little near towns. Clearly labeled "estimated".
+  let navAlts=null,navSel=null;
+  // big & mid-size metro areas: [name, lat, lng, core radius km, how bad traffic gets 0–1]
+  const METROS=[['Atlanta',33.749,-84.388,35,1],['Macon',32.84,-83.632,10,.25],['Savannah',32.081,-81.091,12,.3],['Augusta',33.471,-82.011,12,.3],
+    ['Columbus GA',32.461,-84.988,12,.25],['Albany GA',31.578,-84.156,8,.15],['Valdosta',30.833,-83.278,7,.15],['Athens GA',33.951,-83.357,8,.2],
+    ['Tallahassee',30.438,-84.281,11,.25],['Dothan',31.223,-85.39,7,.15],['Jacksonville',30.332,-81.656,25,.55],['Gainesville FL',29.652,-82.325,9,.25],
+    ['Orlando',28.538,-81.379,28,.7],['Tampa',27.951,-82.457,28,.7],['Miami',25.774,-80.194,35,.85],['Pensacola',30.421,-87.217,10,.3],
+    ['Birmingham',33.521,-86.802,18,.45],['Montgomery',32.367,-86.3,10,.25],['Mobile',30.695,-88.04,12,.3],['Huntsville',34.73,-86.586,12,.3],
+    ['Chattanooga',35.046,-85.309,12,.35],['Nashville',36.162,-86.781,25,.75],['Knoxville',35.961,-83.921,14,.35],['Memphis',35.149,-90.049,20,.5],
+    ['Charlotte',35.227,-80.843,25,.7],['Greenville SC',34.853,-82.394,12,.35],['Columbia SC',34.0,-81.035,13,.35],['Charleston SC',32.777,-79.931,14,.45],
+    ['Raleigh',35.78,-78.639,20,.55],['Richmond',37.541,-77.436,16,.45],['Washington DC',38.907,-77.037,35,.95],['Baltimore',39.29,-76.612,22,.75],
+    ['Philadelphia',39.952,-75.165,30,.8],['New York',40.713,-74.006,45,1],['Boston',42.36,-71.059,30,.9],['Pittsburgh',40.441,-79.996,18,.55],
+    ['Cincinnati',39.103,-84.512,18,.55],['Louisville',38.253,-85.759,16,.5],['Indianapolis',39.768,-86.158,20,.55],['Chicago',41.878,-87.63,40,.95],
+    ['Detroit',42.331,-83.046,30,.7],['St. Louis',38.627,-90.199,22,.6],['Kansas City',39.1,-94.579,22,.5],['Minneapolis',44.978,-93.265,25,.65],
+    ['New Orleans',29.951,-90.072,16,.55],['Baton Rouge',30.451,-91.187,12,.45],['Houston',29.76,-95.37,40,.95],['Dallas–Fort Worth',32.82,-97.0,45,.85],
+    ['Austin',30.267,-97.743,22,.85],['San Antonio',29.424,-98.494,25,.7],['Oklahoma City',35.468,-97.516,18,.4],['Denver',39.739,-104.99,25,.7],
+    ['Phoenix',33.448,-112.074,35,.6],['Las Vegas',36.17,-115.14,20,.55],['Salt Lake City',40.761,-111.891,18,.5],['Los Angeles',34.052,-118.244,55,1],
+    ['San Diego',32.716,-117.161,25,.8],['San Francisco Bay',37.6,-122.2,45,.95],['Sacramento',38.582,-121.494,18,.55],['Portland',45.515,-122.679,20,.7],['Seattle',47.606,-122.332,28,.9]];
+  // how busy roads are at a given moment, 0 (empty) – 1 (peak rush)
+  function busy(t){
+    const day=t.getDay(),h=t.getHours()+t.getMinutes()/60,bell=(c,w)=>Math.exp(-(((h-c)/w)**2));
+    if(day===0)return 0.08+0.22*bell(14,3);
+    if(day===6)return 0.1+0.35*bell(13.5,3);
+    let f=0.06+0.32*bell(12.5,2.2)+bell(8,0.85)+(day===5?1.15:1)*bell(17.2,1.2);
+    return Math.min(1,f);
+  }
+  const schoolTime=t=>{const d=t.getDay(),h=t.getHours()+t.getMinutes()/60;return d>=1&&d<=5&&((h>=7&&h<=8.3)||(h>=14.5&&h<=15.9))};
+  function trafficEstimate(r,start){
+    const pts=r.geometry.coordinates,base=r.duration,dist=r.distance;
+    let el=0,extra=0,prev=null,acc=0,step=Math.max(1,Math.floor(pts.length/400));
+    const seen=new Map();let school=false,peak=0;
+    for(let i=0;i<pts.length;i+=step){
+      const q={lat:pts[i][1],lng:pts[i][0]};
+      if(prev){const dd=haversine(prev,q);acc+=dd;const dt=base*(dd/Math.max(dist,1));
+        const when=new Date(start.getTime()+(el+extra)*1000),b=busy(when);
+        let w=0.03;                                                 // open highway: barely affected
+        for(const m of METROS){const km=haversine(q,{lat:m[1],lng:m[2]})/1000;if(km<m[3]*1.4){
+          const ww=m[4]*(km<m[3]?1:0.45);if(ww>w)w=ww;
+          if(km<m[3]&&!seen.has(m[0]))seen.set(m[0],{when,b})}}
+        extra+=dt*w*b*1.15;el+=dt;peak=Math.max(peak,w*b);
+        if(schoolTime(when)&&w>=0.1)school=true;
+      }
+      prev=q;
+    }
+    if(school)extra+=base*0.03;
+    const ratio=extra/Math.max(base,1);
+    const lvl=ratio<0.08?['Light','#2E9E5B']:ratio<0.22?['Moderate','#D9A21C']:ratio<0.45?['Heavy','#E8711A']:['Very heavy','#C62828'];
+    const why=[...seen].map(([n,v])=>`${n} around ${v.when.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}${v.b>0.75?' (rush hour)':v.b>0.45?' (busy)':''}`);
+    if(school)why.push('school drop-off/let-out near towns');
+    return {base,extra,total:base+extra,level:lvl[0],color:lvl[1],why,ratio};
+  }
+  function viaRoads(r){
+    const by=new Map();((r.legs&&r.legs[0]&&r.legs[0].steps)||[]).forEach(st=>{const n=st.ref?String(st.ref).split(';')[0]:st.name;if(n)by.set(n,(by.get(n)||0)+st.distance)});
+    return [...by].sort((a,b)=>b[1]-a[1]).slice(0,2).map(x=>x[0]);
+  }
+  function useRoute(o){
+    navSel=o;const r=o.r;
+    navRoutePts=o.pts;
+    const end=navRoutePts[navRoutePts.length-1];
+    navGap=haversine({lat:end[0],lng:end[1]},nav)>30?[end,[nav.lat,nav.lng]]:null;
+    $('navRoute').textContent=`${fmtDist(r.distance)} · ${fmtDur(o.est?o.est.total:r.duration)}`;
+    $('navRouteLbl').textContent=o.est&&o.est.extra>60?'With est. traffic':navMode==='car'?'By road':navMode==='foot'?'Walking':'Biking';
+    tbtSetRoute(r);if(o.est)navDur=o.est.total;tripUI();
+    tripOnRoute(r.distance);
+    navRedraw();
+  }
+  function optsCard(){
+    const el=$('navOpts');if(!navAlts||navAlts.length<1){el.style.display='none';return}
+    const fastest=Math.min(...navAlts.map(o=>o.est.total));
+    // could leaving later save time? (checks the next 3 hours on the chosen route)
+    let later='';
+    if(navSel&&navSel.est.extra>8*60){let best={t:0,total:navSel.est.total};
+      for(let m=15;m<=180;m+=15){const e=trafficEstimate(navSel.r,new Date(Date.now()+m*60000));if(e.total+m*0<best.total-60)best={t:m,total:e.total}}
+      if(best.t&&navSel.est.total-best.total>8*60){const at=new Date(Date.now()+best.t*60000);
+        later=`<div class="leavelater">🕒 Leaving around <b>${at.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</b> should save about <b>${fmtDur(navSel.est.total-best.total)}</b> on the drive.</div>`}}
+    el.innerHTML=`<div class="sec" style="margin-top:6px">Route options${navAlts.length>1?` (${navAlts.length})`:''}</div>`+
+      navAlts.map((o,k)=>{const v=viaRoads(o.r),d=o.est.total-fastest;
+        return `<button class="ropt" data-k="${k}" aria-pressed="${o===navSel}"><div class="top1"><span class="letter">${'ABCD'[k]}</span><span class="big">${fmtDur(o.est.total)}</span>
+          <span style="color:var(--muted);font-size:14px">${fmtDist(o.r.distance)}${d>60?` · +${fmtDur(d)}`:o.est.total===fastest&&navAlts.length>1?' · fastest':''}</span>
+          <span class="lvl" style="background:${o.est.color}">${o.est.level}</span></div>
+          <div class="why">${v.length?'via '+esc(v.join(', '))+' · ':''}${o.est.extra>60?`about ${fmtDur(o.est.extra)} of traffic`:'little traffic expected'}${o.est.why.length?'<br>'+esc(o.est.why.join(' · ')):''}</div></button>`}).join('')+
+      later+`<p class="fine" style="margin:2px 0">Traffic is <b>estimated</b> from time of day, day of week and the cities each route passes through — not live.</p>`;
+    el.style.display='';
+    el.onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;useRoute(navAlts[+b.dataset.k]);optsCard()};
+  }
+
   // ---------- Turn-by-turn directions ----------
   // Like Google Maps: a banner with the next turn and the distance to it, the turn after that,
   // spoken directions, arrival time, and automatic re-routing if you miss a turn.
@@ -2639,7 +2870,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   const spokenDist=m=>{const ft=m*3.28084;if(ft<1000)return `${Math.round(ft/100)*100||100} feet`;const mi=m/1609.34;return mi<1?`${mi<0.4?'a quarter':mi<0.7?'half a':'three quarters of a'} mile`:`${Math.round(mi*10)/10} miles`};
   function tbtStart(){
     if(!navSteps||!navSteps.length){toast('Waiting for the route…');return}
-    tbtOn=true;follow=true;$('locBtn').classList.add('on');
+    tbtOn=true;tripUI();follow=true;$('locBtn').classList.add('on');
     $('tbt').style.display='';$('tbtbar').style.display='';$('navcard').classList.remove('show');
     document.querySelector('.top').style.visibility='hidden';
     if(me)map.setView(meShown()||[me.lat,me.lng],Math.max(map.getZoom(),16));
@@ -2649,7 +2880,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   let tbtWake=null;
   function tbtStop(){
-    if(!tbtOn)return;tbtOn=false;
+    if(!tbtOn)return;tbtOn=false;setTimeout(tripUI,0);
     $('tbt').style.display='none';$('tbtbar').style.display='none';document.querySelector('.top').style.visibility='';
     try{speechSynthesis.cancel()}catch(e){}
     try{tbtWake&&tbtWake.release()}catch(e){}tbtWake=null;
@@ -2683,6 +2914,14 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     if(a.off>60){tbtOff++;if(tbtOff>=2&&Date.now()-tbtLastReroute>15000){tbtOff=0;tbtLastReroute=Date.now();if(tbtOn)say('Rerouting');navRoute()}}else tbtOff=0;
   }
   $('navGo').onclick=tbtStart;
+  // On a trip (driving directions, or a driving route of more than ~5 mi) the camera and the
+  // measure tool are put away, so they can't get in the way.
+  function onTrip(){return tbtOn||(nav&&navMode==='car'&&navTotal>8000)}
+  function tripUI(){
+    const t=onTrip();
+    $('arBtn').style.display=t?'none':'';$('navCam').style.display=t?'none':'';
+    if(t){if(arOn)closeAR();if(ms.on)msClose()}
+  }
   $('tbtEnd').onclick=()=>{tbtStop();endNav()};
   $('tbtVoice').onclick=()=>{tbtVoice=!tbtVoice;try{localStorage.setItem('onpoint.voice',tbtVoice?'1':'0')}catch(e){}
     $('tbtVoice').textContent=tbtVoice?'🔊':'🔇';if(!tbtVoice)try{speechSynthesis.cancel()}catch(e){};toast(tbtVoice?'Voice on':'Voice off')};
@@ -2953,23 +3192,24 @@ out tags center 300;`;
     const seq=++navReq;navLastRoute=Date.now();navRouteFrom={lat:me.lat,lng:me.lng};
     $('navRoute').textContent='Finding…';$('navRouteLbl').textContent=navMode==='car'?'By road':navMode==='foot'?'Walking':'Biking';
     try{
-      const url=`${ROUTERS[navMode]}${me.lng.toFixed(6)},${me.lat.toFixed(6)};${nav.lng.toFixed(6)},${nav.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true`;
+      const wantAlts=navMode==='car'&&!tbtOn;
+      const url=`${ROUTERS[navMode]}${me.lng.toFixed(6)},${me.lat.toFixed(6)};${nav.lng.toFixed(6)},${nav.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true${wantAlts?'&alternatives=3':''}`;
       const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),20000);
       const d=await (await fetch(url,{signal:ctl.signal})).json();clearTimeout(tm);
       if(seq!==navReq||!nav)return;
-      const r=d.routes&&d.routes[0];
-      if(!r){$('navRoute').textContent='No route';navRoutePts=null;navRedraw();return}
-      navRoutePts=r.geometry.coordinates.map(c=>[c[1],c[0]]);
-      const end=navRoutePts[navRoutePts.length-1];
-      navGap=haversine({lat:end[0],lng:end[1]},nav)>30?[end,[nav.lat,nav.lng]]:null;
-      $('navRoute').textContent=`${fmtDist(r.distance)} · ${fmtDur(r.duration)}`;
-      tbtSetRoute(r);
-      tripOnRoute(r.distance);
-      navRedraw();
+      const routes=(d.routes||[]).slice(0,4);
+      if(!routes.length){$('navRoute').textContent='No route';navRoutePts=null;navRedraw();return}
+      if(wantAlts&&routes.length&&routes[0].distance>3000){
+        navAlts=routes.map((r,i)=>({r,i,pts:r.geometry.coordinates.map(c=>[c[1],c[0]]),est:trafficEstimate(r,new Date())}));
+        // best = fastest once estimated traffic is included
+        const best=navAlts.reduce((a,b)=>b.est.total<a.est.total?b:a);
+        useRoute(best);optsCard();
+      }else{navAlts=null;$('navOpts').style.display='none';useRoute({r:routes[0],pts:routes[0].geometry.coordinates.map(c=>[c[1],c[0]]),est:navMode==='car'?trafficEstimate(routes[0],new Date()):null})}
     }catch(e){if(seq===navReq)$('navRoute').textContent='Couldn’t route'}
   }
   function endNav(){
-    tbtStop();navSteps=null;
+    navAlts=null;navSel=null;$('navOpts').style.display='none';$('navOpts').innerHTML='';
+    tbtStop();navSteps=null;navTotal=0;setTimeout(tripUI,0);
     $('navTrail').style.display='none';$('navTrail').innerHTML='';trip=null;$('navTrip').style.display='none';$('navTrip').innerHTML='';
     nav=null;navReq++;navRoutePts=null;navGap=null;$('navSvg').innerHTML='';navRedraw();
     $('navcard').classList.remove('show');document.querySelector('.dock').style.display='';
@@ -2997,6 +3237,7 @@ out tags center 300;`;
     $('aBack').onclick=()=>{closeSheet();openAR()};
   }
   async function openAR(){
+    if(onTrip()){toast('Camera is off while you’re on a trip');return}
     enableCompass(true);
     if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('Camera isn’t available in this browser');return}
     try{
@@ -3011,7 +3252,7 @@ out tags center 300;`;
     if(arStream){arStream.getTracks().forEach(t=>t.stop());arStream=null}
     $('arVideo').srcObject=null;arMsg('');arPool.forEach(e=>e.style.display='none');arErrShown=false;
   }
-  $('arBtn').onclick=openAR;
+  $('arBtn').onclick=()=>{if(onTrip()){toast('Camera is off while you’re on a trip');return}openAR()};
   $('arClose').onclick=closeAR;
   $('arReload').onclick=()=>{arMsg('');arLoad(true);toast('Reloading labels…')};
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&arOn)closeAR()});
