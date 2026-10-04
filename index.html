@@ -70,6 +70,8 @@ button{cursor:pointer}
 .btn-plain{background:var(--paper);color:var(--ink)}
 .calbar{position:absolute;left:12px;right:12px;top:calc(var(--safe-t) + 104px);z-index:600;background:#FFF4E8;border:1.5px solid #F2B37A;color:var(--ink);border-radius:12px;padding:10px 12px;display:none;align-items:center;gap:10px;font-size:14px;line-height:1.35;box-shadow:0 3px 10px rgba(0,0,0,.18)}
 .calbar.show{display:flex}
+#gasbar span{display:block;font-size:13px}
+#gasbar button{margin-left:6px}
 .calbar b{display:block;font-size:15px}
 .calbar button{margin-left:auto;border:0;background:#fff;border-radius:8px;padding:8px 12px;font-weight:600;flex:none}
 .calbar .spin{width:22px;height:22px;border-radius:50%;border:3px solid #F2B37A;border-top-color:#F28C28;animation:sp 1s linear infinite;flex:none}
@@ -318,6 +320,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 </header>
 
 <div class="hint" id="hint">Tap the map to drop a pin</div>
+<div class="calbar" id="gasbar" role="alert" style="background:#FDECEA;border-color:#F2B8B5;color:#7A1C17;align-items:center"></div>
 <div class="calbar" id="dlbanner" role="status" style="flex-wrap:wrap"><span style="flex:1;min-width:0"><b id="dlbT">Downloading…</b><span id="dlbS"></span>
   <span style="display:block;height:8px;border-radius:4px;background:#F6D9BC;overflow:hidden;margin-top:6px"><span id="dlbBar" style="display:block;height:100%;width:0;background:#E0287D;transition:width .2s"></span></span></span><button id="dlbStop">Cancel</button></div>
 <div class="calbar" id="calbar" role="status"><span class="spin" aria-hidden="true"></span><span><b>Calibrating compass</b><span id="calMsg">Wave the phone in a figure‑8, then move in a straight line with it pointed ahead</span></span><button id="calSkip">Skip</button></div>
@@ -370,6 +373,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <div id="navTrip" style="display:none"></div>
   <div id="navTrail" style="display:none"></div>
   <div class="seg" id="navMode"><button data-m="car" aria-pressed="true">🚗 Drive</button><button data-m="foot" aria-pressed="false">🚶 Walk</button><button data-m="bike" aria-pressed="false">🚲 Bike</button></div>
+  <div class="row" style="margin-top:6px"><button class="b-flag" id="navSave">⬇ Save route for no-signal use</button></div>
   <div class="row" style="margin-top:6px"><button class="b-ghost" id="navPin">⚑ Pin it</button><button class="b-ghost" id="navG">Google Maps</button><button class="b-ghost" id="navA">Apple Maps</button></div>
   <div class="row" style="margin-top:8px;display:none"><button class="b-flag" id="navGo" style="flex:2;font-size:17px">▶ Start directions</button></div>
   <details id="navStepsBox" style="margin-top:6px;display:none"><summary style="font-weight:600;padding:6px 0">Step-by-step directions</summary><div class="triplist" id="navSteps" style="max-height:220px"></div></details>
@@ -476,7 +480,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     getTileUrl(c){
       const b=this._tileCoordsToBounds(c),P=L.CRS.EPSG3857;
       const nw=P.project(b.getNorthWest()),se=P.project(b.getSouthEast());
-      return this._url+'?bbox='+[nw.x,se.y,se.x,nw.y].join(',')+'&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&f=image';
+      return this._url+'?bbox='+[nw.x,se.y,se.x,nw.y].join(',')+'&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&f=image'+(this.options.extra||'');
     }
   });
   const gibs=name=>`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${name}/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`;
@@ -605,6 +609,8 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   const parcelTiles=L.tileLayer('',{maxZoom:20,maxNativeZoom:20,minZoom:10,zIndex:8,attribution:'Parcels © Regrid'});
   function parcelUrl(){return `https://tiles.regrid.com/api/v1/parcels/{z}/{x}/{y}.png?token=${encodeURIComponent(regridKey)}`}
   if(regridKey)parcelTiles.setUrl(parcelUrl(),true);
+  const covLayer=L.layerGroup();covLayer.on('add',()=>setTimeout(()=>covStart(),0));covLayer.on('remove',()=>setTimeout(()=>covStop(),0));
+  const sigLayer=L.layerGroup();sigLayer.on('add',()=>setTimeout(()=>sigDrawAll(),0));
   const OVERLAYS={
     chart:{name:'Nautical chart depths',desc:'NOAA charts with depth soundings and contours — coast, bays, big rivers and some large lakes',
       layer:new EsriExport('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/MapServer/export',{maxZoom:20,opacity:.9,zIndex:5,attribution:'Charts © NOAA'})},
@@ -614,6 +620,8 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       layer:L.tileLayer(gibs('GHRSST_L4_MUR_Sea_Surface_Temperature'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'SST © NASA GIBS'})},
     owners:{name:'Owner names',desc:'Writes who owns each property right on the map — loads by itself as you look around (Regrid key; uses your allowance)',layer:ownLayer},
     parcels:{name:'Property lines',desc:'Property boundaries (Regrid — needs your key). Tap a property with 🏠 in the ✏ tools to see the owner',layer:parcelTiles},
+    cov:{name:'Carrier coverage — dead zones',desc:'Your carrier’s LTE coverage (FCC data). Blank areas = likely no signal',layer:covLayer},
+    signal:{name:'Signal dead spots',desc:'Where this phone lost signal (red) or it was slow (orange) — recorded as you go',layer:sigLayer},
     towers:{name:'Cell towers',desc:'FCC-licensed cellular sites near you. Not every carrier site is listed. Zoom in to load',layer:towers},
     air:{name:'Air temperature (live)',desc:'Current temperature across the map, updated every 15 min',layer:airLayer},
     lst:{name:'Land & lake surface temp',desc:'NASA daily daytime surface temp. Gaps where it was cloudy',temp:'Surface temp',
@@ -647,11 +655,12 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 77 (route info only)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 79 (carrier dead zones)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
       if((k==='parcels'||k==='owners')&&!regridKey&&!layerState.on.includes(k)){closeSheet();showRegridKey(true);return}
+      if(k==='cov'&&!layerState.on.includes(k)&&!covCarrier){closeSheet();showCarrierPick();return}
       layerState.on=layerState.on.includes(k)?layerState.on.filter(x=>x!==k):[...layerState.on,k];applyLayers();
       b.setAttribute('aria-pressed',layerState.on.includes(k));
       if(layerState.on.includes(k)&&(OVERLAYS[k].layer.options||{}).maxNativeZoom===7&&map.getZoom()>11)toast('Zoom out to see the temperature pattern');};
@@ -729,7 +738,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     else{meCircle.setRadius(acc);glideTo(lat,lng);}
     if(first) map.setView([lat,lng],17);
     $('locBtn').classList.toggle('on',follow);
-    updateReadout();drawDirection();autoCalSample();if(nav)navUpdate();bgPrefetch();trkOnPos(pos);wxLoad(false);
+    updateReadout();drawDirection();autoCalSample();if(nav)navUpdate();bgPrefetch();trkOnPos(pos);wxLoad(false);gasTick();sigTick();
     if(headingOn){const t=currentHeading();if(t!=null&&(lastSet==null||Math.abs(((t-lastSet+540)%360)-180)>=2)){lastSet=t;map.setBearing(-t)}}
   }
   // ---- Smooth movement ----
@@ -1576,7 +1585,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v77 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v79 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1767,6 +1776,9 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       <div class="toolgrid">
         <button id="tDraw"><svg viewBox="0 0 24 24" fill="none" stroke="#E0287D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg>Draw / write<small>Write notes and sketch right on the map</small></button>
         <button id="tMeasure"><svg viewBox="0 0 24 24" fill="none" stroke="#F28C28" stroke-width="2" stroke-linejoin="round"><rect x="2" y="8" width="20" height="8" rx="1.5" transform="rotate(-30 12 12)"/><path d="M7.2 10.6l1 1.8M10 9l1.6 2.8M12.8 7.4l1 1.8M15.6 5.8l1.6 2.8" stroke-linecap="round"/></svg>Measure<small>Distance between spots, or the area inside</small></button>
+        <button id="tDead" style="grid-column:1/-1"><span style="font-size:28px;line-height:1">📶</span>Show dead zones<small>Where your carrier has no signal, plus spots where your phone lost it</small></button>
+        <button id="tImport"><span style="font-size:28px;line-height:1">🔗</span>Import a route<small>Paste a Google Maps or Apple Maps link</small></button>
+        <button id="tSaved"><span style="font-size:28px;line-height:1">🗂</span>Saved routes<small>Routes saved for no-signal use</small></button>
         <button id="tTrail" style="grid-column:1/-1"><span style="font-size:28px;line-height:1">🥾</span>Plan a trail<small>Drive to the trailhead, parking, then the trail — length, climb and difficulty</small></button>
         <button id="tProp" style="grid-column:1/-1"><span style="font-size:28px;line-height:1">🏠</span>Who owns this?<small>Tap any spot to look up the property and owner</small></button>
       </div>`);
@@ -1775,6 +1787,9 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     if(onTrip())$('tMeasure').style.display='none';
     $('tProp').onclick=()=>{closeSheet();if(skOn)skClose();if(ms.on)msClose();propOpen()};
     $('tTrail').onclick=()=>{closeSheet();if(skOn)skClose();if(ms.on)msClose();showTrails()};
+    $('tImport').onclick=()=>{closeSheet();showImport()};
+    $('tDead').onclick=()=>{closeSheet();follow=false;$('locBtn').classList.remove('on');if(map.getZoom()>11)map.setZoom(10);showCarrierPick()};
+    $('tSaved').onclick=()=>{closeSheet();showSavedRoutes()};
   };
 
   // ---------- Property: who owns this? ----------
@@ -3106,8 +3121,8 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
     return n?hit/n:1;
   }
   async function moreRoutes(seq){
-    if(!navAlts||!nav||!me||navMode!=='car')return;
-    const A={lat:me.lat,lng:me.lng},B={lat:nav.lat,lng:nav.lng},D=haversine(A,B);if(D<5000)return;
+    const O=navFrom||me;if(!navAlts||!nav||!O||navMode!=='car'||(nav.via&&nav.via.length))return;
+    const A={lat:O.lat,lng:O.lng},B={lat:nav.lat,lng:nav.lng},D=haversine(A,B);if(D<5000)return;
     const k=Math.cos(A.lat*Math.PI/180),dx=(B.lng-A.lng)*k,dy=B.lat-A.lat,len=Math.hypot(dx,dy)||1,px=-dy/len,py=dx/len;
     const via=(t,off)=>{const lat=A.lat+(B.lat-A.lat)*t+py*off*len,lng=A.lng+(B.lng-A.lng)*t+px*off*len/k;return [lat,lng]};
     const tries=[];
@@ -3347,6 +3362,7 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
       for(const st of [...list,{along:total,end:true}]){if(st.along-prev>limit)out.push({a:prev,b:st.along,kind,from:prevSt,to:st.end?null:st});prev=st.along;prevSt=st}return out};
     trip.gaps=gapsOf(gas,GAS_GAP,'gas');trip.restGaps=gapsOf(rest,REST_GAP,'rest');
     trip.ready=true;trip.myI=null;tripCard();navRedraw();
+    gasRemember(trip.raw.filter(x=>x.kind==='fuel'||x.services));
     if(trip.gaps.length)toast(`⚠ ${trip.gaps.length} long stretch${trip.gaps.length>1?'es':''} with no gas on this trip`);
   }
   function tripCard(msg){
@@ -3361,7 +3377,7 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
       <div class="tripnext"><div id="tripNextGas"><small>Next gas</small><b>—</b></div><div id="tripNextRest"><small>Next rest area</small><b>—</b></div></div>
       ${warn||'<p class="fine" style="margin:2px 0">✓ Gas within every 50 miles along this route.</p>'}
       <p class="fine" style="margin:4px 0">${gasN} gas station${gasN!==1?'s':''} and ${restN} rest area${restN!==1?'s':''} within about a mile of the route. Long no-gas stretches are red on the map.</p>
-      <details><summary style="font-weight:600;padding:4px 0">All stops along the way</summary><div class="triplist">${list||'None found'}</div></details>`;
+      <details><summary style="font-weight:600;padding:4px 0">All stops along the way</summary><div class="triplist">${list||'None found'}</div></details>${sigRouteHtml()}`;
     tripLive();
   }
   function tripLive(){
@@ -3373,6 +3389,287 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
     // heads-up when a long no-gas stretch is coming
     const g=trip.gaps.find(g=>g.a>a.along&&g.a-a.along<16000);
     if(g&&!g.warned){g.warned=true;toast(`⚠ Last gas for ${Math.round((g.b-g.a)/1609.34)} miles is coming up — fill up now`)}
+  }
+
+  // ---------- Import a route from Google Maps / Apple Maps ----------
+  // Paste (or share via the iPhone Shortcut) a Maps link. On Point reads where it starts, where it
+  // goes and any stops, then plans the trip itself — with its own route options, traffic estimates,
+  // gas stations and rest stops. (It can't copy Google's or Apple's exact line, but it goes to the same places.)
+  let navFrom=null;
+  function parseMapsLink(text){
+    text=String(text||'').trim();
+    const urlM=text.match(/https?:\/\/\S+/);const raw=urlM?urlM[0].replace(/[)\].,]+$/,''):text;
+    if(/(maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs)/i.test(raw))return {short:true};
+    const ll=t=>{const m=String(t||'').match(/(-?\d{1,2}\.\d{2,})\s*,\s*(-?\d{1,3}\.\d{2,})/);return m?{lat:+m[1],lng:+m[2]}:null};
+    const place=t=>{if(!t)return null;t=decodeURIComponent(String(t).replace(/\+/g,' ')).trim();if(!t||/^current location$/i.test(t)||/^my location$/i.test(t))return null;return ll(t)||{q:t}};
+    let u=null;try{u=new URL(raw)}catch(e){}
+    if(!u){const p=ll(text);return p?{to:p}:(text.length>2?{to:{q:text}}:null)}
+    const P=u.searchParams,host=u.hostname;
+    let mode=/dirflg=w|travelmode=walking|\/data=.*!3e2/.test(raw)?'foot':/dirflg=b|travelmode=bicycling|!3e1/.test(raw)?'bike':'car';
+    if(/apple/.test(host)){
+      const to=place(P.get('daddr')||P.get('destination'))||ll(P.get('coordinate'))||ll(P.get('ll'))&&{...ll(P.get('ll')),name:P.get('q')||P.get('name')}||place(P.get('address'))||place(P.get('q'))||place(P.get('name'));
+      const from=place(P.get('saddr')||P.get('source'));
+      return to?{to,from,mode}:null;
+    }
+    if(/google/.test(host)){
+      if(P.get('destination'))return {to:place(P.get('destination')),from:place(P.get('origin')),via:(P.get('waypoints')||'').split('|').filter(Boolean).map(place).filter(Boolean),mode};
+      const dir=u.pathname.match(/\/maps\/dir\/(.+?)(\/@|\/data=|$)/);
+      if(dir){
+        const names=dir[1].split('/').map(place);
+        // exact coordinates for each stop, when Google included them
+        const co=[...raw.matchAll(/!1d(-?\d+\.\d+)!2d(-?\d+\.\d+)/g)].map(m=>({lat:+m[2],lng:+m[1]}));
+        const same=co.length===names.length;
+        const stops=names.map((n,i)=>{const c=same?co[i]:null;return n?(c&&n.q?{...c,name:n.q}:n):(c?{...c}:null)});
+        const from=stops[0],to=stops[stops.length-1],via=stops.slice(1,-1).filter(Boolean);
+        return to?{to,from,via,mode}:null;
+      }
+      const plc=u.pathname.match(/\/maps\/place\/([^/]+)/),at=raw.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/),q=raw.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+      if(q)return {to:{lat:+q[1],lng:+q[2],name:plc?decodeURIComponent(plc[1].replace(/\+/g,' ')):''},mode};
+      if(plc)return {to:place(plc[1]),mode};
+      if(P.get('q'))return {to:place(P.get('q')),mode};
+      if(at)return {to:{lat:+at[1],lng:+at[2]},mode};
+    }
+    const p=ll(raw);return p?{to:p}:null;
+  }
+  async function resolvePlace(p){
+    if(!p)return null;
+    if(typeof p.lat==='number')return {lat:p.lat,lng:p.lng,name:p.name||p.q||`${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`};
+    const r=await onlineSearch(p.q);return r&&r[0]?{lat:r[0].lat,lng:r[0].lng,name:r[0].name}:null;
+  }
+  async function importRoute(text){
+    const plan=parseMapsLink(text);
+    if(!plan){toast('That doesn’t look like a Maps link');return false}
+    if(plan.short){showImport('short');return false}
+    if(!navigator.onLine){toast('Importing needs a signal');return false}
+    toast('Reading the route…');
+    const [to,from]=await Promise.all([resolvePlace(plan.to),resolvePlace(plan.from)]);
+    const via=[];for(const v of plan.via||[]){const r=await resolvePlace(v);if(r)via.push([r.lat,r.lng])}
+    if(!to){toast('Couldn’t find where that route goes');return false}
+    const fromFar=from&&me&&haversine(from,me)>3000;
+    navMode=plan.mode||'car';try{localStorage.setItem('onpoint.navMode',navMode)}catch(e){}
+    startNav({name:to.name,sub:`Imported route${fromFar?` from ${from.name}`:''}${via.length?` · ${via.length} stop${via.length>1?'s':''}`:''}`,icon:'🔗',lat:to.lat,lng:to.lng,
+      from:fromFar||(!me&&from)?{lat:from.lat,lng:from.lng}:null,via});
+    return true;
+  }
+  function showImport(why){
+    openSheet(`<h2 id="sheetTitle">🔗 Import a route</h2>
+      ${why==='short'?'<p class="fine" style="color:#B3261E;font-size:15px">That’s a short Google link — the app can’t open those by itself. Use the share Shortcut below, or open the link and copy the full address from Safari.</p>':''}
+      <p class="fine" style="font-size:15px;margin-top:4px">In Google Maps or Apple Maps, tap <b>Share → Copy</b> on your directions, then paste here.</p>
+      <textarea id="imT" placeholder="Paste the Maps link" style="min-height:70px"></textarea>
+      <div class="row"><button class="b-ghost" id="imPaste">📋 Paste</button><button class="b-flag" id="imGo">Import</button></div>
+      <details style="margin-top:12px"><summary style="font-weight:600">Share straight from Google/Apple Maps (one-time setup)</summary>
+      <p class="fine" style="line-height:1.5">Make an iPhone Shortcut:<br>1. Shortcuts app → <b>+</b> → name it <b>Send to On Point</b>.<br>2. Tap ⓘ → turn on <b>Show in Share Sheet</b> (accepts URLs and Text).<br>3. Add <b>Expand URL</b> (input: Shortcut Input).<br>4. Add <b>URL Encode</b> (input: Expanded URL).<br>5. Add <b>Text</b>: <code>${esc(location.origin+location.pathname)}?import=</code> then the URL Encoded result.<br>6. Add <b>Open URLs</b>.<br>Now in Google or Apple Maps: <b>Share → Send to On Point</b>. It opens On Point in Safari with the route.</p></details>`);
+    $('imPaste').onclick=async()=>{try{$('imT').value=await navigator.clipboard.readText()}catch(e){toast('Tap and hold in the box, then Paste')}};
+    $('imGo').onclick=async()=>{const v=$('imT').value.trim();if(!v){toast('Paste a link first');return}closeSheet();if(!await importRoute(v))setTimeout(()=>{},0)};
+  }
+  // opened from the Shortcut (…?import=…) or a link like …?to=Knoxville
+  setTimeout(async()=>{try{const P=new URLSearchParams(location.search),im=P.get('import')||P.get('route'),to=P.get('to');
+    if(im||to){history.replaceState(null,'',location.pathname);
+      const go=async()=>{if(im)await importRoute(im);else await importRoute(to)};
+      if(me)go();else{toast('Waiting for your location…');let n=0;const iv=setInterval(()=>{if(me||++n>20){clearInterval(iv);go()}},1000)}}}catch(e){}},300);
+
+  // ---------- Save a route for no-signal use ----------
+  // Downloads the map along the route (a mile each side), the gas stations and rest areas on it,
+  // and the route itself — so with no signal you still see the road, where the gas is, and how far.
+  async function saveRouteOffline(){
+    if(!nav||!navRoutePts||navRoutePts.length<2){toast('Wait for the route to load');return}
+    if(!navigator.onLine){toast('Saving needs a signal');return}
+    const pts=[];let last=null;for(const q of navRoutePts){if(!last||haversine({lat:last[0],lng:last[1]},{lat:q[0],lng:q[1]})>400){pts.push([+q[0].toFixed(5),+q[1].toFixed(5)]);last=q}}
+    pts.push(navRoutePts[navRoutePts.length-1]);
+    const rec={id:'r'+Date.now().toString(36),name:nav.name,time:Date.now(),pts,
+      dist:navTotal,dur:navSel&&navSel.est?navSel.est.total:navDur,stops:(trip&&trip.raw)||[],to:{lat:nav.lat,lng:nav.lng}};
+    const list=(await idb.get('savedRoutes').catch(()=>null))||[];list.unshift(rec);await idb.set('savedRoutes',list.slice(0,20)).catch(()=>{});
+    gasRemember(rec.stops.filter(x=>x.kind==='fuel'||x.services));
+    toast('Saving the map along the route…');
+    runDownload({kind:'trail',pts,w:1},['usgs']);
+  }
+  async function showSavedRoutes(){
+    const list=(await idb.get('savedRoutes').catch(()=>null))||[];
+    openSheet(`<h2 id="sheetTitle">🗂 Saved routes</h2>
+      ${list.length?list.map((r,i)=>`<div class="opt" style="cursor:default"><span><span class="ot">${esc(r.name)}</span><span class="od">${fmtDist(r.dist||0)} · ${(r.stops||[]).filter(x=>x.kind==='fuel').length} gas stations · saved ${new Date(r.time).toLocaleDateString()}</span></span>
+        <span style="margin-left:auto;display:flex;gap:6px"><button class="b-primary" data-open="${i}" style="border-radius:10px;padding:8px 12px;font-weight:600">Open</button><button class="b-danger" data-del="${i}" style="border-radius:10px;padding:8px 10px">✕</button></span></div>`).join('')
+      :'<p class="fine">None yet. Plan a route, then tap “⬇ Save route for no-signal use”.</p>'}
+      <div class="row"><button class="b-ghost" id="srClose">Close</button></div>`);
+    $('srClose').onclick=closeSheet;
+    $('sheetBody').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{closeSheet();openSavedRoute(list[+b.dataset.open])});
+    $('sheetBody').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{list.splice(+b.dataset.del,1);await idb.set('savedRoutes',list).catch(()=>{});showSavedRoutes()});
+  }
+  function openSavedRoute(r){
+    // show it without needing the internet: the saved line, gas and rest stops, and the warnings
+    endNav();
+    nav={name:r.name,sub:'Saved route',icon:'🗂',lat:r.to.lat,lng:r.to.lng};navFrom=null;
+    $('navName').textContent=`🗂 ${r.name}`;$('navSub').textContent='Saved route — works with no signal';
+    $('navcard').classList.add('show');document.querySelector('.dock').style.display='none';ncSnap('open',false);
+    navRoutePts=r.pts;navAlts=null;navSel=null;navTotal=r.dist||0;navDur=r.dur||0;
+    $('navRoute').textContent=`${fmtDist(r.dist||0)} · ${fmtDur(r.dur||0)}`;$('navRouteLbl').textContent='Saved route';
+    trip={key:'saved',cum:routeCum(),raw:r.stops||[],stops:[],gaps:[],ready:false,total:r.dist};tripCompute();
+    navUpdate();setTimeout(()=>ncFitRoute(),100);
+  }
+  $('navSave').onclick=saveRouteOffline;
+
+  // ---------- Gas watch: warns when there's no gas ahead ----------
+  // Works with or without a planned route. As you drive it keeps a list of gas stations around
+  // you (and every station from routes you've planned or saved), and when the road ahead has no
+  // station for 25+ miles it tells you — including where the last one before the gap is.
+  // The station list is kept on the phone, so it still works after you lose signal.
+  let gasMem=new Map(),gasAt=null,gasBusy=false,gasWarned=false,gasLastEval=0;
+  let gasOn=true;try{gasOn=localStorage.getItem('onpoint.gasWatch')!=='0'}catch(e){}
+  idb.get('gasCache').then(v=>{if(Array.isArray(v))v.forEach(x=>gasMem.set(x.k,x))}).catch(()=>{});
+  function gasRemember(list){
+    let n=0;(list||[]).forEach(x=>{if(typeof x.lat!=='number')return;const k=x.lat.toFixed(4)+','+x.lng.toFixed(4);if(!gasMem.has(k)){gasMem.set(k,{k,lat:x.lat,lng:x.lng,name:x.name||'Gas station'});n++}});
+    if(n){const arr=[...gasMem.values()].slice(-8000);idb.set('gasCache',arr).catch(()=>{})}
+  }
+  async function gasFetchAround(){
+    if(gasBusy||!navigator.onLine||!me)return;gasBusy=true;
+    try{const d=await overpass(`[out:json][timeout:20][bbox:${bboxOf(me.lat,me.lng,60000)}];nwr["amenity"="fuel"];out center tags 600;`,22000,2);
+      gasRemember((d.elements||[]).map(el=>({lat:el.lat??(el.center&&el.center.lat),lng:el.lon??(el.center&&el.center.lon),name:(el.tags||{}).brand||(el.tags||{}).name})));
+      gasAt={lat:me.lat,lng:me.lng};
+    }catch(e){}finally{gasBusy=false}
+  }
+  function gasTick(){
+    if(!gasOn||!me)return;
+    if(trip&&trip.ready&&nav)return;                         // a planned route already has its own gas warnings
+    const now=Date.now();if(now-gasLastEval<15000)return;gasLastEval=now;
+    if(!gasAt||haversine(me,gasAt)>20000)gasFetchAround();
+    if(!(gpsSpeed>6&&gpsHeading!=null))return;               // only while driving
+    let ahead=null,any=null;
+    for(const g of gasMem.values()){const d=haversine(me,g);if(d>70000)continue;
+      if(!any||d<any.d)any={...g,d};
+      if(d>300&&Math.abs(angDiff(bearingTo(me,g),gpsHeading))<50&&(!ahead||d<ahead.d))ahead={...g,d}}
+    const covered=gasAt&&haversine(me,gasAt)<45000;          // do we actually know the stations out here?
+    if((!ahead||ahead.d>40000)&&(covered||gasMem.size)){
+      if(!gasWarned){gasWarned=true;gasBanner(ahead,any,covered)}
+    }else if(ahead&&ahead.d<25000){gasWarned=false;$('gasbar').style.display='none'}
+  }
+  function gasBanner(ahead,any,covered){
+    const el=$('gasbar');
+    el.innerHTML=`<div style="flex:1;min-width:0"><b>⛽ No gas for ${ahead?Math.round(ahead.d/1609.34)+' mi':'25+ miles'} ahead</b>
+      <span>${any?`Closest: ${esc(any.name)} · ${fmtDist(any.d)} ${CARD[Math.round(bearingTo(me,any)/22.5)%16]}`:'No stations saved near here'}${covered?'':' · (saved list only — no signal)'}</span></div>
+      ${any?'<button id="gbGo">Go</button>':''}<button id="gbX" aria-label="Dismiss">✕</button>`;
+    el.style.display='flex';
+    try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}
+    try{if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(`Heads up. No gas stations for the next ${ahead?Math.round(ahead.d/1609.34):'twenty five'} miles.`);speechSynthesis.speak(u)}}catch(e){}
+    if($('gbGo'))$('gbGo').onclick=()=>{el.style.display='none';startNav({name:any.name,sub:'Nearest gas',icon:'⛽',lat:any.lat,lng:any.lng})};
+    $('gbX').onclick=()=>{el.style.display='none'};
+  }
+
+  // ---------- Signal dead spots ----------
+  // While the app is open it checks every ~20 s whether the phone can reach the internet and how
+  // fast, and records that at your spot. Red = no signal, orange = very slow. Over time this builds
+  // your own map of dead spots; routes then warn you about the ones you'll pass through.
+  let sigLog=[],sigLast=null,sigBusy=false;
+  idb.get('signalLog').then(v=>{if(Array.isArray(v))sigLog=v}).catch(()=>{});
+  async function sigTick(){
+    if(sigBusy||!me||document.visibilityState!=='visible')return;
+    const now=Date.now();
+    if(sigLast&&now-sigLast.t<20000)return;
+    if(sigLast&&haversine(sigLast,me)<120&&now-sigLast.t<120000)return;
+    sigBusy=true;let ok=false,ms=0;
+    try{
+      if(navigator.onLine){const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),t0=performance.now();
+        await fetch('https://www.gstatic.com/generate_204?'+now,{mode:'no-cors',cache:'no-store',signal:ctl.signal});clearTimeout(tm);ok=true;ms=Math.round(performance.now()-t0)}
+    }catch(e){ok=false}
+    const rec={lat:+me.lat.toFixed(5),lng:+me.lng.toFixed(5),t:now,ok,ms};
+    sigLog.push(rec);if(sigLog.length>30000)sigLog.splice(0,sigLog.length-30000);sigLast=rec;sigBusy=false;
+    if(sigLog.length%10===0||!ok)idb.set('signalLog',sigLog).catch(()=>{});
+    if(map.hasLayer(sigLayer))sigDraw(rec);
+    sigAheadWarn();
+  }
+  const sigCanvas=L.canvas({padding:.3});
+  function sigDraw(r){
+    const bad=!r.ok,slow=r.ok&&r.ms>2500;if(!bad&&!slow&&!r._showGood)return;
+    L.circleMarker([r.lat,r.lng],{renderer:sigCanvas,radius:bad?6:4.5,color:'#fff',weight:1.5,fillColor:bad?'#D32F2F':'#E8711A',fillOpacity:.9,interactive:false}).addTo(sigLayer);
+  }
+  function sigDrawAll(){sigLayer.clearLayers();sigLog.forEach(sigDraw);if(!sigLog.some(r=>!r.ok||r.ms>2500))toast('No dead spots recorded yet — they show up as you travel with the app open')}
+  // dead spots along the planned route (grouped into stretches with mile markers)
+  function sigRouteHtml(){
+    if(!trip||!trip.cum||!navRoutePts)return '';
+    const bad=sigLog.filter(r=>!r.ok||r.ms>2500);if(!bad.length)return `<p class="fine" style="margin:4px 0">📵 No dead spots recorded on this route yet. <a href="https://broadbandmap.fcc.gov/home" target="_blank" rel="noopener">Carrier coverage maps (FCC)</a></p>`;
+    const hits=[];for(const r of bad){const a=alongOf(r.lat,r.lng,trip.cum);if(a.off<600)hits.push(a.along)}
+    if(!hits.length)return `<p class="fine" style="margin:4px 0">📵 No dead spots recorded on this route. <a href="https://broadbandmap.fcc.gov/home" target="_blank" rel="noopener">Carrier coverage maps (FCC)</a></p>`;
+    hits.sort((a,b)=>a-b);const groups=[];for(const x of hits){const g=groups[groups.length-1];if(g&&x-g.b<3000)g.b=x;else groups.push({a:x,b:x})}
+    const mi=m=>(m/1609.34).toFixed(0);
+    return `<div class="tripwarn" style="background:#FFF4E8;border-color:#F2B37A;color:#6B3A0C"><b>📵 Weak or no signal recorded on this route</b>${groups.slice(0,6).map(g=>g.b-g.a>500?`mile ${mi(g.a)}–${mi(g.b)}`:`around mile ${mi(g.a)}`).join(' · ')}<br>Tap “⬇ Save route for no-signal use” so the map and gas stations are on your phone.</div>`;
+  }
+  let sigWarnedAt=0;
+  function sigAheadWarn(){
+    if(!(gpsSpeed>6&&gpsHeading!=null)||Date.now()-sigWarnedAt<10*60000)return;
+    const near=sigLog.find(r=>(!r.ok)&&(()=>{const d=haversine(me,r);return d>800&&d<8000&&Math.abs(angDiff(bearingTo(me,r),gpsHeading))<35})());
+    if(near){sigWarnedAt=Date.now();toast(`📵 You lost signal about ${fmtDist(haversine(me,near))} ahead last time — maps & gas you’ve saved still work`)}
+  }
+
+  // ---------- Carrier coverage: where there's no signal ----------
+  // Uses the FCC's public LTE coverage maps (what AT&T, Verizon, T-Mobile and UScellular report,
+  // 2021, outdoors). Covered areas are tinted; the blank gaps in between are the dead zones.
+  // The map data is found automatically through ArcGIS Online, where the FCC data is published.
+  let covCarrier='';try{covCarrier=localStorage.getItem('onpoint.carrier')||''}catch(e){}
+  const COV_ITEMS={verizon:['d466f8548aee4b9ab59783978e63081c','e88ba029b98c41fbbdcc466137a70794'],att:['bcb0d12154e44d5e912034781a923391','e88ba029b98c41fbbdcc466137a70794'],
+    tmobile:['e88ba029b98c41fbbdcc466137a70794'],uscellular:['e88ba029b98c41fbbdcc466137a70794']};
+  const COV_RX={verizon:/verizon/i,att:/at&t|att\b|at&amp;t/i,tmobile:/t-?mobile/i,uscellular:/us ?cellular/i};
+  const COV_NAME={verizon:'Verizon',att:'AT&T',tmobile:'T-Mobile',uscellular:'UScellular'};
+  let covLive=null,covFeat=null,covTimer=null,covSrc=null;
+  const AG='https://www.arcgis.com/sharing/rest/content/items/';
+  const jget=async(u,ms=12000)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(u,{signal:c.signal});return await r.json()}finally{clearTimeout(t)}};
+  // list every map layer inside an ArcGIS item (a map service, feature service or web map)
+  async function agolLayers(id){
+    const it=await jget(AG+id+'?f=json'),out=[];
+    const fromService=async(url,title)=>{url=url.replace(/\/+$/,'');
+      if(/\/(MapServer|FeatureServer)\/\d+$/.test(url)){out.push({url,title});return}
+      const sv=await jget(url+'?f=json');
+      (sv.layers||[]).forEach(l=>out.push({url:url+'/'+l.id,title:(l.name||'')+' '+(title||''),tiled:!!sv.singleFusedMapCache,svc:url,id:l.id,maxZ:sv.tileInfo&&sv.tileInfo.lods?sv.tileInfo.lods.length-1:null}));
+      if(!(sv.layers||[]).length)out.push({url,title,tiled:!!sv.singleFusedMapCache,svc:url,maxZ:sv.tileInfo&&sv.tileInfo.lods?sv.tileInfo.lods.length-1:null});
+    };
+    if(it.type==='Web Map'){const d=await jget(AG+id+'/data?f=json');
+      for(const l of d.operationalLayers||[]){if(l.url)await fromService(l.url,(l.title||'')+' '+(it.title||'')).catch(()=>{});
+        (l.layers||[]).forEach(x=>x.url&&out.push({url:x.url,title:(x.title||'')+' '+(l.title||'')}))}}
+    else if(it.url)await fromService(it.url,it.title||'');
+    return out.map(x=>({...x,title:x.title+' '+(it.title||'')}));
+  }
+  async function covFind(carrier){
+    for(const id of COV_ITEMS[carrier]){
+      let ls=[];try{ls=await agolLayers(id)}catch(e){continue}
+      const mine=ls.filter(l=>COV_RX[carrier].test(l.title));
+      const pick=mine.find(l=>/data|broadband|5\/1|lte/i.test(l.title)&&!/voice/i.test(l.title))||mine.find(l=>!/voice/i.test(l.title))||mine[0];
+      if(pick)return pick;
+    }
+    return null;
+  }
+  async function covStart(){
+    if(!covCarrier){showCarrierPick();return}
+    if(!navigator.onLine){toast('Coverage map needs a signal the first time — saved areas still show');}
+    covStop(true);toast(`Loading ${COV_NAME[covCarrier]} coverage…`);
+    let L0=null;try{L0=await covFind(covCarrier)}catch(e){}
+    if(!map.hasLayer(covLayer))return;
+    if(!L0){toast('Couldn’t reach the FCC coverage map — your own recorded dead spots still work (Signal dead spots layer)');return}
+    covSrc=L0;
+    if(/MapServer/.test(L0.url)){
+      const svc=L0.svc||L0.url.replace(/\/\d+$/,''),id=L0.id!=null?L0.id:+(L0.url.match(/\/(\d+)$/)||[])[1];
+      covLive=L0.tiled?L.tileLayer(svc+'/tile/{z}/{y}/{x}',{opacity:.5,maxZoom:20,maxNativeZoom:L0.maxZ||16,zIndex:3,attribution:'Coverage: FCC'})
+        :new EsriExport(svc+'/export',{opacity:.55,maxZoom:20,zIndex:3,extra:Number.isFinite(id)?`&layers=show:${id}`:'',attribution:'Coverage: FCC'});
+      covLive.addTo(covLayer);
+    }else{                                             // feature layer: draw the coverage shapes for what's on screen
+      covFeat=L.geoJSON(null,{renderer:L.canvas({padding:.2}),interactive:false,style:{stroke:false,fillColor:'#2E9E5B',fillOpacity:.32}}).addTo(covLayer);
+      covQuery();map.on('moveend',covQueue);
+    }
+    toast(`${COV_NAME[covCarrier]}: tinted = signal · blank = likely dead zone (FCC 2021, outdoors)`);
+  }
+  function covQueue(){clearTimeout(covTimer);covTimer=setTimeout(covQuery,500)}
+  async function covQuery(){
+    if(!covFeat||!covSrc)return;
+    const z=map.getZoom();if(z<7){covFeat.clearLayers();toast('Zoom in a little to see coverage');return}
+    const b=map.getBounds(),tol=(360/(256*2**z))*1.5;
+    const u=`${covSrc.url}/query?where=1%3D1&geometry=${[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(v=>v.toFixed(4)).join(',')}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=&returnGeometry=true&outSR=4326&maxAllowableOffset=${tol}&geometryPrecision=5&resultRecordCount=400&f=geojson`;
+    try{const d=await jget(u,20000);if(!covFeat)return;covFeat.clearLayers();covFeat.addData(d)}catch(e){}
+  }
+  function covStop(keep){covLayer.clearLayers();covLive=null;covFeat=null;covSrc=null;map.off('moveend',covQueue)}
+  function showCarrierPick(){
+    openSheet(`<h2 id="sheetTitle">📶 Who’s your carrier?</h2>
+      <p class="fine" style="font-size:15px;margin-top:4px">The map tints where your carrier reports LTE signal. The blank gaps between are where you’ll likely have <b>no signal</b>.</p>
+      <div id="cpL">${Object.entries(COV_NAME).map(([k,n])=>`<button class="opt" role="radio" aria-checked="${k===covCarrier}" data-c="${k}"><span><span class="ot">${n}</span><span class="od">${k==='tmobile'?'Also Mint, Metro, Google Fi':k==='att'?'Also Cricket, Straight Talk (some)':k==='verizon'?'Also Visible, Total, Straight Talk (some)':'Regional'}</span></span><span class="mk"></span></button>`).join('')}</div>
+      <p class="fine">Data: FCC mobile LTE coverage (carrier-reported, 2021, outdoors). Real signal can be weaker indoors or in hollows. Your own recorded dead spots (Signal dead spots layer) show what actually happened on your phone.</p>`);
+    $('cpL').onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;covCarrier=b.dataset.c;try{localStorage.setItem('onpoint.carrier',covCarrier)}catch(_){}
+      closeSheet();if(!layerState.on.includes('cov')){layerState.on.push('cov');applyLayers()}else covStart();
+      if(!layerState.on.includes('signal')){layerState.on.push('signal');applyLayers()}};
   }
 
   // ---------- Trail planner ----------
@@ -3525,7 +3822,7 @@ out tags center 300;`;
   }
 
   function startNav(t){
-    stopAutoRotate();lockTwist(true);
+    stopAutoRotate();lockTwist(true);navFrom=t.from||null;
     if(t.trail)setTimeout(()=>trailCardFill(t.trail),0);else{$('navTrail').style.display='none';$('navTrail').innerHTML=''}
     nav=t;navRouteFrom=null;navRoutePts=null;navGap=null;
     $('navName').textContent=`${t.icon||'📍'} ${t.name}`;
@@ -3558,17 +3855,21 @@ out tags center 300;`;
     navRedraw();
   }
   async function navRoute(){
-    if(!nav||!me)return;
+    const O=navFrom||me;
+    if(!nav||!O)return;
     if(!navigator.onLine){$('navRoute').textContent='No signal';$('navRouteLbl').textContent='Route';return}
-    const seq=++navReq;navLastRoute=Date.now();navRouteFrom={lat:me.lat,lng:me.lng};
+    const seq=++navReq;navLastRoute=Date.now();navRouteFrom=navFrom?null:{lat:me.lat,lng:me.lng};
     $('navRoute').textContent='Finding…';$('navRouteLbl').textContent=navMode==='car'?'By road':navMode==='foot'?'Walking':'Biking';
     try{
-      const wantAlts=navMode==='car'&&!tbtOn;
-      const url=`${ROUTERS[navMode]}${me.lng.toFixed(6)},${me.lat.toFixed(6)};${nav.lng.toFixed(6)},${nav.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true${wantAlts?'&alternatives=3':''}`;
+      const via=(nav.via||[]).map(v=>`${v[1].toFixed(6)},${v[0].toFixed(6)};`).join('');
+      const wantAlts=navMode==='car'&&!tbtOn&&!via;
+      const url=`${ROUTERS[navMode]}${O.lng.toFixed(6)},${O.lat.toFixed(6)};${via}${nav.lng.toFixed(6)},${nav.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true${wantAlts?'&alternatives=3':''}`;
       const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),20000);
       const d=await (await fetch(url,{signal:ctl.signal})).json();clearTimeout(tm);
       if(seq!==navReq||!nav)return;
-      const routes=(d.routes||[]).slice(0,4).map(calibrate);
+      const routes=(d.routes||[]).slice(0,4).map(r=>{if(r.legs&&r.legs.length>1){const L=r.legs,st=[];
+          L.forEach((lg,li)=>(lg.steps||[]).forEach(x=>{const t=x.maneuver.type;if((t==='arrive'&&li<L.length-1)||(t==='depart'&&li>0))return;st.push(x)}));r.legs=[{steps:st}]}
+        return calibrate(r)});
       if(!routes.length){$('navRoute').textContent='No route';navRoutePts=null;navRedraw();return}
       if(wantAlts&&routes.length&&routes[0].distance>3000){
         navAlts=routes.map((r,i)=>({r,i,pts:r.geometry.coordinates.map(c=>[c[1],c[0]]),est:trafficEstimate(r,new Date())}));
@@ -3580,6 +3881,7 @@ out tags center 300;`;
     }catch(e){if(seq===navReq)$('navRoute').textContent='Couldn’t route'}
   }
   function endNav(){
+    navFrom=null;
     if(!ms.on)lockTwist(false);
     navAlts=null;navSel=null;$('navOpts').style.display='none';$('navOpts').innerHTML='';
     tbtStop();navSteps=null;navTotal=0;setTimeout(tripUI,0);
