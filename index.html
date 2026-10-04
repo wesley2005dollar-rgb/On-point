@@ -647,7 +647,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 70 (Atlanta traffic fixed)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 72 (realistic drive times)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -1573,7 +1573,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v70 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v72 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -2946,6 +2946,21 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
   }
   const LVLS=[['Light','#2E9E5B'],['Moderate','#D9A21C'],['Heavy','#E8711A'],['Very heavy','#C62828']];
   const lvlOf=x=>x<0.22?0:x<0.45?1:x<0.7?2:3;            // x = how jammed a stretch is (0–1)
+  // The free router assumes you drive well under the speed limit on highways (about 56 mph on a
+  // 70 mph interstate), so long trips came out hours too long. Speed each stretch back up to normal
+  // driving speeds based on what kind of road it is.
+  function calibrate(r){
+    if(!r||r._cal)return r;r._cal=true;
+    let tot=0;
+    (r.legs||[]).forEach(lg=>(lg.steps||[]).forEach(st=>{
+      if(!st.distance||!st.duration){tot+=st.duration||0;return}
+      const kmh=st.distance/st.duration*3.6;
+      const f=kmh>=85?0.78:kmh>=72?0.83:kmh>=55?0.9:kmh>=40?0.95:1;   // interstate → highway → town streets
+      st.duration*=f;tot+=st.duration;
+    }));
+    if(tot>0)r.duration=tot;
+    return r;
+  }
   function trafficEstimate(r,start){
     const pts=r.geometry.coordinates,base=r.duration,dist=r.distance;
     let el=0,extra=0,prev=null,step=Math.max(1,Math.floor(pts.length/400));
@@ -2966,6 +2981,7 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
       prev=q;
     }
     if(school)extra+=base*0.03;
+    const capF=base>3*3600?0.3:base>3600?0.45:0.7;extra=Math.min(extra,base*capF);
     const ratio=extra/Math.max(base,1);
     let li=ratio<0.12?0:ratio<0.3?1:ratio<0.6?2:3;
     // a route is at least as bad as the worst big city it goes through (if it spends real time there)
@@ -3006,29 +3022,43 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
     const k=Math.cos(A.lat*Math.PI/180),dx=(B.lng-A.lng)*k,dy=B.lat-A.lat,len=Math.hypot(dx,dy)||1,px=-dy/len,py=dx/len;
     const via=(t,off)=>{const lat=A.lat+(B.lat-A.lat)*t+py*off*len,lng=A.lng+(B.lng-A.lng)*t+px*off*len/k;return [lat,lng]};
     const tries=[];
-    // around busy cities the fastest route passes through
-    const base=navAlts[0].pts;
-    for(const m of METROS){if(m[4]<0.45)continue;
-      const near=base.some((q,i)=>i%10===0&&haversine({lat:q[0],lng:q[1]},{lat:m[1],lng:m[2]})<m[3]*1000);if(!near)continue;
-      const r=m[3]*1.7/111;[1,-1].forEach(sg=>tries.push({v:[m[1]+py*sg*r,m[2]+px*sg*r/k],why:`around ${m[0]}`}));}
+    // every city (big or small — Atlanta, Macon…) the fastest route goes through, in trip order
+    const base=navAlts[0].pts,cum=[0];for(let i=1;i<base.length;i++)cum.push(cum[i-1]+haversine({lat:base[i-1][0],lng:base[i-1][1]},{lat:base[i][0],lng:base[i][1]}));
+    const onRoute=[];
+    for(const m of METROS){if(m[4]<0.15)continue;let at=-1;
+      for(let i=0;i<base.length;i+=5)if(haversine({lat:base[i][0],lng:base[i][1]},{lat:m[1],lng:m[2]})<m[3]*1000){at=cum[i];break}
+      // skip the city you're starting in or ending in — you can't avoid those
+      if(at>=0&&haversine(A,{lat:m[1],lng:m[2]})>m[3]*1500&&haversine(B,{lat:m[1],lng:m[2]})>m[3]*1500)onRoute.push({m,at});}
+    onRoute.sort((a,b)=>a.at-b.at);
+    const off=(m,sg)=>{const r=Math.max(m[3]*1.8,28)/111;return [m[1]+py*sg*r,m[2]+px*sg*r/k]};
+    const side=sg=>(sg>0?(py>0?'north':'west'):(py>0?'south':'east'));
+    const sideName=sg=>{const dLng=px*sg,dLat=py*sg;return Math.abs(dLng)>Math.abs(dLat)?(dLng<0?'west':'east'):(dLat>0?'north':'south')};
+    // 1) skip ALL of them on one side, then the other (e.g. west of both Macon and Atlanta)
+    if(onRoute.length>1)[1,-1].forEach(sg=>tries.push({vs:onRoute.map(o=>off(o.m,sg)),why:`${sideName(sg)} of ${onRoute.map(o=>o.m[0]).join(' & ')}`}));
+    // 2) around each one by itself
+    onRoute.forEach(o=>[1,-1].forEach(sg=>tries.push({vs:[off(o.m,sg)],why:`${sideName(sg)} of ${o.m[0]}`})));
     // wider and narrower swings to either side of the trip
-    [[0.5,0.12],[0.5,-0.12],[0.5,0.25],[0.5,-0.25],[0.33,0.18],[0.33,-0.18],[0.67,0.18],[0.67,-0.18]].forEach(([t,o])=>tries.push({v:via(t,o),why:''}));
+    [[0.5,0.12],[0.5,-0.12],[0.5,0.25],[0.5,-0.25],[0.33,0.18],[0.33,-0.18],[0.67,0.18],[0.67,-0.18]].forEach(([t,o])=>tries.push({vs:[via(t,o)],why:''}));
     const fastest=()=>Math.min(...navAlts.map(o=>o.est.total));
     let added=0;
-    for(const tr of tries.slice(0,12)){
+    for(const tr of tries.slice(0,16)){
       if(seq!==navReq||!nav||tbtOn||navAlts.length>=8)break;
       try{
-        const url=`${ROUTERS.car}${A.lng.toFixed(6)},${A.lat.toFixed(6)};${tr.v[1].toFixed(5)},${tr.v[0].toFixed(5)};${B.lng.toFixed(6)},${B.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true&continue_straight=true`;
+        const mid=tr.vs.map(v=>`${v[1].toFixed(5)},${v[0].toFixed(5)}`).join(';');
+        const url=`${ROUTERS.car}${A.lng.toFixed(6)},${A.lat.toFixed(6)};${mid};${B.lng.toFixed(6)},${B.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true&continue_straight=true`;
         const d=await (await fetch(url)).json();if(seq!==navReq||!nav)return;
-        const r=d.routes&&d.routes[0];if(!r)continue;
-        // join the two legs' steps into one list (drop the "arrive at waypoint / depart" pair)
-        const L0=(r.legs[0]&&r.legs[0].steps)||[],L1=(r.legs[1]&&r.legs[1].steps)||[];
-        r.legs=[{steps:[...L0.filter(st=>st.maneuver.type!=='arrive'),...L1.filter(st=>st.maneuver.type!=='depart')]}];
+        const r=calibrate(d.routes&&d.routes[0]);if(!r)continue;
+        // join every leg's steps into one list (drop the "arrive at waypoint / depart" pairs in between)
+        const legs=r.legs||[],steps=[];
+        legs.forEach((lg,li)=>(lg.steps||[]).forEach(st=>{const t=st.maneuver.type;if((t==='arrive'&&li<legs.length-1)||(t==='depart'&&li>0))return;steps.push(st)}));
+        r.legs=[{steps}];
         const pts=r.geometry.coordinates.map(c=>[c[1],c[0]]);
         if(r.distance>D*2.2)continue;                                   // silly detour
         if(navAlts.some(o=>overlapFrac(pts,o.pts)>0.85))continue;        // basically the same road
         // no doubling back over itself at the waypoint
         const half=Math.floor(pts.length/2);if(overlapFrac(pts.slice(half),pts.slice(0,half))>0.3)continue;
+        // must actually stay out of the cities it's meant to avoid
+        if(tr.vs.length&&tr.why&&onRoute.some(o=>tr.why.includes(o.m[0])&&pts.some((q,i)=>i%6===0&&haversine({lat:q[0],lng:q[1]},{lat:o.m[1],lng:o.m[2]})<o.m[3]*600)))continue;
         const est=trafficEstimate(r,new Date());
         if(est.total-fastest()>ALT_MAX_EXTRA)continue;
         navAlts.push({r,pts,est,why:tr.why});added++;
@@ -3050,7 +3080,7 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
         later=`<div class="leavelater">🕒 Leaving around <b>${at.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</b> should save about <b>${fmtDur(navSel.est.total-best.total)}</b> on the drive.</div>`}}
     el.innerHTML=`<div class="sec" style="margin-top:6px">Route options${navAlts.length>1?` (${navAlts.length})`:''}</div>`+
       navAlts.map((o,k)=>{const v=viaRoads(o.r),d=o.est.total-fastest;
-        return `<button class="ropt" data-k="${k}" aria-pressed="${o===navSel}"><div class="top1"><span class="letter">${'ABCDEFGH'[k]}</span><span class="big">${fmtDur(o.est.total)}</span>
+        return `<button class="ropt" data-k="${k}" aria-pressed="${o===navSel}"><div class="top1"><span class="letter">${'ABCDEFGH'[k]}</span><span class="big">${fmtDur(o.est.total)}</span><span style="font-size:12px;color:var(--muted)">${o.est.extra>60?`${fmtDur(o.est.base)} drive + ${fmtDur(o.est.extra)} traffic`:''}</span>
           <span style="color:var(--muted);font-size:14px">${fmtDist(o.r.distance)}${d>60?` · +${fmtDur(d)}`:o.est.total===fastest&&navAlts.length>1?' · fastest':''}</span>
           <span class="lvl" style="background:${o.est.color}">${o.est.level}</span></div>
           <div class="why">${o.why?'<b>'+esc(o.why)+'</b> · ':''}${v.length?'via '+esc(v.join(', '))+' · ':''}${o.est.extra>60?`about ${fmtDur(o.est.extra)} of traffic`:'little traffic expected'}${o.est.why.length?'<br>'+esc(o.est.why.join(' · ')):''}</div></button>`}).join('')+
@@ -3443,7 +3473,7 @@ out tags center 300;`;
       const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),20000);
       const d=await (await fetch(url,{signal:ctl.signal})).json();clearTimeout(tm);
       if(seq!==navReq||!nav)return;
-      const routes=(d.routes||[]).slice(0,4);
+      const routes=(d.routes||[]).slice(0,4).map(calibrate);
       if(!routes.length){$('navRoute').textContent='No route';navRoutePts=null;navRedraw();return}
       if(wantAlts&&routes.length&&routes[0].distance>3000){
         navAlts=routes.map((r,i)=>({r,i,pts:r.geometry.coordinates.map(c=>[c[1],c[0]]),est:trafficEstimate(r,new Date())}));
