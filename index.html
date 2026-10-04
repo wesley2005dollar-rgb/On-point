@@ -620,9 +620,6 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       layer:L.tileLayer(gibs('GHRSST_L4_MUR_Sea_Surface_Temperature'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'SST © NASA GIBS'})},
     owners:{name:'Owner names',desc:'Writes who owns each property right on the map — loads by itself as you look around (Regrid key; uses your allowance)',layer:ownLayer},
     parcels:{name:'Property lines',desc:'Property boundaries (Regrid — needs your key). Tap a property with 🏠 in the ✏ tools to see the owner',layer:parcelTiles},
-    cov:{name:'Carrier coverage — dead zones',desc:'Your carrier’s LTE coverage (FCC data). Blank areas = likely no signal',layer:covLayer},
-    signal:{name:'Signal dead spots',desc:'Where this phone lost signal (red) or it was slow (orange) — recorded as you go',layer:sigLayer},
-    towers:{name:'Cell towers',desc:'FCC-licensed cellular sites near you. Not every carrier site is listed. Zoom in to load',layer:towers},
     air:{name:'Air temperature (live)',desc:'Current temperature across the map, updated every 15 min',layer:airLayer},
     lst:{name:'Land & lake surface temp',desc:'NASA daily daytime surface temp. Gaps where it was cloudy',temp:'Surface temp',
       layer:L.tileLayer(gibs('MODIS_Terra_Land_Surface_Temp_Day'),{crossOrigin:'anonymous',maxZoom:20,maxNativeZoom:7,opacity:.65,zIndex:4,attribution:'LST © NASA GIBS'})}
@@ -655,7 +652,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 79 (carrier dead zones)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 80 (no towers or dead zones)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -1290,13 +1287,15 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   let arShow={peak:true,place:true,sight:true,local:true,road:true,pin:true,tower:false},arRangeMi=25;
   try{const v=JSON.parse(localStorage.getItem('onpoint.ar'));if(v){Object.assign(arShow,v.show||{});if(v.range)arRangeMi=v.range}}catch(e){}
   try{if(localStorage.getItem('onpoint.pinsOn1')!=='1'){localStorage.setItem('onpoint.pinsOn1','1');arShow.pin=true}}catch(e){}
+  arShow.tower=false;   // cell towers are no longer shown
   function arSave(){try{localStorage.setItem('onpoint.ar',JSON.stringify({show:arShow,range:arRangeMi}))}catch(e){}}
   const bearingTo=(a,b)=>{const r=Math.PI/180,y=Math.sin((b.lng-a.lng)*r)*Math.cos(b.lat*r),
     x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lng-a.lng)*r);return (Math.atan2(y,x)/r+360)%360};
   const CARD=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
 
   function arChips(){
-    $('arChips').innerHTML=Object.entries(AR_TYPES).map(([k,t])=>`<button data-k="${k}" aria-pressed="${!!arShow[k]}">${t.label}</button>`).join('');
+    arShow.tower=false;
+    $('arChips').innerHTML=Object.entries(AR_TYPES).filter(([k])=>k!=='tower').map(([k,t])=>`<button data-k="${k}" aria-pressed="${!!arShow[k]}">${t.label}</button>`).join('');
   }
   $('arChips').onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;const k=b.dataset.k;arShow[k]=!arShow[k];
     b.setAttribute('aria-pressed',arShow[k]);arSave();if(k==='tower'&&arShow.tower)arLoadTowers(true);
@@ -1585,7 +1584,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v79 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v80 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1776,7 +1775,6 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       <div class="toolgrid">
         <button id="tDraw"><svg viewBox="0 0 24 24" fill="none" stroke="#E0287D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg>Draw / write<small>Write notes and sketch right on the map</small></button>
         <button id="tMeasure"><svg viewBox="0 0 24 24" fill="none" stroke="#F28C28" stroke-width="2" stroke-linejoin="round"><rect x="2" y="8" width="20" height="8" rx="1.5" transform="rotate(-30 12 12)"/><path d="M7.2 10.6l1 1.8M10 9l1.6 2.8M12.8 7.4l1 1.8M15.6 5.8l1.6 2.8" stroke-linecap="round"/></svg>Measure<small>Distance between spots, or the area inside</small></button>
-        <button id="tDead" style="grid-column:1/-1"><span style="font-size:28px;line-height:1">📶</span>Show dead zones<small>Where your carrier has no signal, plus spots where your phone lost it</small></button>
         <button id="tImport"><span style="font-size:28px;line-height:1">🔗</span>Import a route<small>Paste a Google Maps or Apple Maps link</small></button>
         <button id="tSaved"><span style="font-size:28px;line-height:1">🗂</span>Saved routes<small>Routes saved for no-signal use</small></button>
         <button id="tTrail" style="grid-column:1/-1"><span style="font-size:28px;line-height:1">🥾</span>Plan a trail<small>Drive to the trailhead, parking, then the trail — length, climb and difficulty</small></button>
@@ -1788,7 +1786,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     $('tProp').onclick=()=>{closeSheet();if(skOn)skClose();if(ms.on)msClose();propOpen()};
     $('tTrail').onclick=()=>{closeSheet();if(skOn)skClose();if(ms.on)msClose();showTrails()};
     $('tImport').onclick=()=>{closeSheet();showImport()};
-    $('tDead').onclick=()=>{closeSheet();follow=false;$('locBtn').classList.remove('on');if(map.getZoom()>11)map.setZoom(10);showCarrierPick()};
+
     $('tSaved').onclick=()=>{closeSheet();showSavedRoutes()};
   };
 
@@ -3560,6 +3558,7 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
   let sigLog=[],sigLast=null,sigBusy=false;
   idb.get('signalLog').then(v=>{if(Array.isArray(v))sigLog=v}).catch(()=>{});
   async function sigTick(){
+    return;   // signal recording is switched off
     if(sigBusy||!me||document.visibilityState!=='visible')return;
     const now=Date.now();
     if(sigLast&&now-sigLast.t<20000)return;
@@ -3583,6 +3582,7 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
   function sigDrawAll(){sigLayer.clearLayers();sigLog.forEach(sigDraw);if(!sigLog.some(r=>!r.ok||r.ms>2500))toast('No dead spots recorded yet — they show up as you travel with the app open')}
   // dead spots along the planned route (grouped into stretches with mile markers)
   function sigRouteHtml(){
+    return '';
     if(!trip||!trip.cum||!navRoutePts)return '';
     const bad=sigLog.filter(r=>!r.ok||r.ms>2500);if(!bad.length)return `<p class="fine" style="margin:4px 0">📵 No dead spots recorded on this route yet. <a href="https://broadbandmap.fcc.gov/home" target="_blank" rel="noopener">Carrier coverage maps (FCC)</a></p>`;
     const hits=[];for(const r of bad){const a=alongOf(r.lat,r.lng,trip.cum);if(a.off<600)hits.push(a.along)}
