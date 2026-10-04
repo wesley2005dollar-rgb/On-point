@@ -145,7 +145,9 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .ar-pinedge{position:absolute;top:66%;z-index:3;background:rgba(28,37,44,.8);color:#fff;border-radius:10px;padding:6px 10px;font-size:14px;font-weight:700;pointer-events:none;max-width:44vw;border-left:4px solid #E0287D}
 .ar-pinedge small{display:block;font-weight:400;font-size:12px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ar-horizon{position:absolute;left:0;right:0;height:0;border-top:1px dashed rgba(255,255,255,.35);z-index:1;pointer-events:none}
-.ar-tag{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;z-index:2;cursor:pointer}
+.ar-tag{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;z-index:2;pointer-events:none}
+.ar-tag .pill{pointer-events:auto;cursor:pointer}
+.ar-tag.pin{z-index:4}
 .ar-tag .pill{background:rgba(250,250,247,.94);color:var(--ink);border-radius:10px;padding:5px 9px;font-size:13px;line-height:1.2;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35);text-align:center}
 .ar-tag .pill b{display:block;font-size:14px}
 .ar-tag .stem{width:2px;background:rgba(255,255,255,.85);box-shadow:0 0 2px rgba(0,0,0,.6)}
@@ -191,7 +193,41 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .sres .s{font-size:13px;color:var(--muted);display:block}
 .sres .d{margin-left:auto;font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap}
 .srch-pin{width:30px;height:42px}
-.navcard{position:absolute;left:0;right:0;bottom:0;z-index:940;background:var(--paper);border-radius:18px 18px 0 0;padding:12px 16px calc(var(--safe-b) + 14px);box-shadow:0 -4px 20px rgba(0,0,0,.25);display:none}
+.tripwarn{background:#FDECEA;border:1.5px solid #F2B8B5;color:#7A1C17;border-radius:12px;padding:8px 10px;margin:6px 0;font-size:14px;line-height:1.35}
+.tripwarn b{display:block;font-size:15px}
+.tripnext{display:flex;gap:8px;margin:6px 0}
+.tripnext div{flex:1;background:#EEF0F1;border-radius:12px;padding:8px 10px;font-size:13.5px;line-height:1.3}
+.tripnext b{display:block;font-size:16px}
+.triplist{max-height:180px;overflow-y:auto;margin:4px 0;font-size:14px}
+.triplist div{display:flex;gap:8px;padding:6px 2px;border-bottom:1px solid var(--line)}
+.triplist .mi{margin-left:auto;color:var(--muted);font-weight:600;white-space:nowrap}
+.tstats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0}
+.tstats div{background:#EEF0F1;border-radius:10px;padding:6px 6px;text-align:center}
+.tstats small{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase}
+.tstats b{font-size:16px}
+.tdiff{display:inline-block;border-radius:8px;padding:2px 8px;font-weight:700;color:#fff;font-size:13px}
+.tprof{width:100%;height:64px;display:block;background:#F4F5F2;border-radius:10px;margin:4px 0 2px}
+.tlegs{font-size:13.5px;line-height:1.5;margin:4px 0}
+.tlegs b{font-weight:600}
+.tbt{position:absolute;left:8px;right:8px;top:calc(var(--safe-t) + 6px);z-index:960;background:#1B5E20;color:#fff;border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.35);overflow:hidden}
+.tbt-main{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.tbt-ic{width:56px;height:56px;flex:none}
+.tbt-ic svg{width:56px;height:56px}
+.tbt-dist{font:700 30px/1 'Barlow Condensed','Arial Narrow',sans-serif}
+.tbt-txt{font-size:18px;font-weight:600;line-height:1.2;margin-top:2px}
+.tbt-then{background:#124417;padding:7px 14px;font-size:15px;display:flex;align-items:center;gap:8px}
+.tbt-then:empty{display:none}
+.tbt-then svg{width:22px;height:22px}
+.tbtbar{position:absolute;left:0;right:0;bottom:0;z-index:960;background:var(--paper);border-radius:18px 18px 0 0;padding:12px 14px calc(var(--safe-b) + 12px);box-shadow:0 -4px 16px rgba(0,0,0,.25);display:flex;align-items:center;gap:8px}
+.tbtbar b{display:block;font:700 26px/1 'Barlow Condensed','Arial Narrow',sans-serif;color:#1B5E20}
+.tbtbar span{font-size:14px;color:var(--muted)}
+.tbtbar button{height:46px;min-width:46px;border:0;border-radius:12px;background:#EEF0F1;font-size:20px;margin-left:auto}
+.tbtbar button+button{margin-left:0}
+.tbtbar .end{background:#B3261E;color:#fff;font-size:16px;font-weight:700;padding:0 16px}
+.stp{display:flex;gap:10px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--line)}
+.stp svg{width:26px;height:26px;flex:none}
+.stp.done{opacity:.4}
+.navcard{max-height:72vh;overflow-y:auto;position:absolute;left:0;right:0;bottom:0;z-index:940;background:var(--paper);border-radius:18px 18px 0 0;padding:12px 16px calc(var(--safe-b) + 14px);box-shadow:0 -4px 20px rgba(0,0,0,.25);display:none}
 .navcard.show{display:block}
 .navcard h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:24px;margin:0;line-height:1.15}
 .navcard .nsub{font-size:14px;color:var(--muted);margin:2px 0 8px}
@@ -303,14 +339,26 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <button class="btn-flag" id="pinHereBtn">Pin where I am</button>
 </nav>
 
+<div class="tbt" id="tbt" style="display:none">
+  <div class="tbt-main"><div class="tbt-ic" id="tbtIc"></div><div style="min-width:0"><div class="tbt-dist" id="tbtDist">—</div><div class="tbt-txt" id="tbtTxt"></div></div></div>
+  <div class="tbt-then" id="tbtThen"></div>
+</div>
+<div class="tbtbar" id="tbtbar" style="display:none">
+  <div style="min-width:0"><b id="tbtEta">—</b><span id="tbtLeft"></span></div>
+  <button id="tbtVoice" aria-label="Voice on/off">🔊</button><button id="tbtList" aria-label="All steps">☰</button><button id="tbtEnd" class="end">End</button>
+</div>
 <div class="navcard" id="navcard" role="dialog" aria-label="Route">
   <h3 id="navName"></h3><div class="nsub" id="navSub"></div>
   <div class="nstats">
     <div class="nstat"><small>Straight line</small><b id="navStraight">—</b></div>
     <div class="nstat"><small id="navRouteLbl">By road</small><b id="navRoute">—</b></div>
   </div>
+  <div id="navTrip" style="display:none"></div>
+  <div id="navTrail" style="display:none"></div>
   <div class="seg" id="navMode"><button data-m="car" aria-pressed="true">🚗 Drive</button><button data-m="foot" aria-pressed="false">🚶 Walk</button><button data-m="bike" aria-pressed="false">🚲 Bike</button></div>
   <div class="row" style="margin-top:6px"><button class="b-ghost" id="navPin">⚑ Pin it</button><button class="b-ghost" id="navG">Google Maps</button><button class="b-ghost" id="navA">Apple Maps</button></div>
+  <div class="row" style="margin-top:8px"><button class="b-flag" id="navGo" style="flex:2;font-size:17px">▶ Start directions</button></div>
+  <details id="navStepsBox" style="margin-top:6px"><summary style="font-weight:600;padding:6px 0">Step-by-step directions</summary><div class="triplist" id="navSteps" style="max-height:220px"></div></details>
   <div class="row" style="margin-top:8px"><button class="b-ghost" id="navCam">📷 Back to camera</button><button class="b-primary" id="navEnd">Done</button></div>
 </div>
 <div class="dlpanel" id="prpanel" role="dialog" aria-label="Property lookup" style="padding-top:10px">
@@ -585,7 +633,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 57 (whole-road routes)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 62 (turn-by-turn)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -954,7 +1002,13 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
     setTimeout(()=>{if(headingOn&&currentHeading()==null)toast('No compass reading from this phone')},2500);
   }
   function stopHeading(){headingOn=false;$('compassBtn').classList.remove('head');}
+  function stopAutoRotate(){
+    if(headingOn)stopHeading();
+    if(canRotate&&Math.abs(map.getBearing())>0.5)map.setBearing(0);
+  }
+  function lockTwist(lock){try{if(map.touchRotate)lock?map.touchRotate.disable():map.touchRotate.enable()}catch(e){}}
   $('compassBtn').onclick=()=>{
+    if(nav||ms.on){if(canRotate&&Math.abs(map.getBearing())>0.5){map.setBearing(0);toast('North up')}else toast('Map stays north-up while '+(nav?'a route is showing':'measuring'));return}
     if(!canRotate){toast('Rotation didn’t load — check your connection');return}
     if(headingOn){stopHeading();map.setBearing(0);toast('North up');return}
     if(Math.abs(map.getBearing())>1){map.setBearing(0);toast('North up — tap again to follow your heading');return}
@@ -1487,10 +1541,12 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   // Reusable label elements (rebuilding them 60×/s also made taps miss)
   const arPool=[];
-  function arTag(i){
-    if(!arPool[i]){const el=document.createElement('div');el.className='ar-tag';
-      el.innerHTML='<div class="pill"></div><div class="stem"></div><div class="dotp"></div>';$('arLabels').appendChild(el);arPool[i]=el}
-    return arPool[i];
+  const arByKey=new Map();
+  function arTag(key){
+    let el=arByKey.get(key);
+    if(!el){el=document.createElement('div');el.className='ar-tag';
+      el.innerHTML='<div class="pill"></div><div class="stem"></div><div class="dotp"></div>';$('arLabels').appendChild(el);arByKey.set(key,el);arPool.push(el)}
+    return el;
   }
   function arFrame(){
     if(!arOn)return;
@@ -1502,7 +1558,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v57 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v62 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1544,7 +1600,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       arRoadPick.forEach(place);
     }
     items.sort((a,b)=>a.score-b.score);
-    const placed=[];let n=0;
+    const placed=[],used=new Set();let n=0;
     for(const it of items){
       if(n>=30)break;
       const w=Math.max(70,Math.min(190,String(it.p.name).length*7.5+24)),hgt=40;
@@ -1555,7 +1611,8 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
         top-=hgt+6;
       }
       if(!ok)continue;
-      const stem=Math.max(8,it.y-(top+hgt)),el=arTag(n);
+      const key=it.p.type+'|'+(it.p.id||it.p.name)+'|'+(it.p.type==='road'?'':it.p.lat.toFixed(5)+','+it.p.lng.toFixed(5));
+      const stem=Math.max(8,it.y-(top+hgt)),el=arTag(key);el.classList.toggle('pin',it.p.type==='pin'||it.p.type==='search');used.add(el);
       const p=it.p,sub=(p.type==='local'||p.type==='road'||(p.type==='pin'&&p.sub))?esc(p.sub)+' · ':'';
       const html=`<b>${p.icon||AR_TYPES[p.type].icon} ${esc(p.name)}</b>${sub}${fmtDist(it.d)}${p.ele!=null?' · '+Math.round(p.ele*3.28084).toLocaleString()+' ft':''}`;
       const pill=el.firstChild;
@@ -1565,7 +1622,8 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       el.style.left=it.x.toFixed(0)+'px';el.style.top=(top+hgt+stem+5).toFixed(0)+'px';el.style.display='';
       el._item=it;n++;
     }
-    for(let i=n;i<arPool.length;i++)arPool[i].style.display='none';
+    for(const el of arPool)if(!used.has(el))el.style.display='none';
+    if(arPool.length>120){for(const [k,el] of arByKey)if(!used.has(el)){el.remove();arByKey.delete(k)}arPool.length=0;arByKey.forEach(el=>arPool.push(el))}
     arDiag(pose,items.length,n);
     // pins off to the sides: "◀ 3 pins" / "2 pins ▶"
     let pl=0,pr=0,nl=null,nr=null;
@@ -1593,7 +1651,9 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     return (c.length?c.join(' · '):(arLoading?'Finding places around you…'+secs:'No places loaded — tap ↻'))+(arBusy&&c.length?' · loading more…':'');
   }
   let arItems=[];
-  $('arLabels').onclick=e=>{const t=e.target.closest('.ar-tag');if(!t||!t._item)return;const p=t._item.p;closeAR();
+  let arDownItem=null;
+  $('arLabels').addEventListener('pointerdown',e=>{const t=e.target.closest('.pill');const tag=t&&t.parentElement;arDownItem=tag&&tag._item?tag._item:null});
+  $('arLabels').onclick=e=>{const t=e.target.closest('.pill');const tag=t&&t.parentElement;const it=arDownItem||(tag&&tag._item);arDownItem=null;if(!it)return;const p=it.p;closeAR();
     if(p.type==='road'){startRoadNav(p.name,p.sub,{lat:p.lat,lng:p.lng});return}
     startNav({name:p.name,sub:p.sub,icon:p.icon||AR_TYPES[p.type].icon,lat:p.lat,lng:p.lng,ele:p.ele})};
   // ---------- Weather at the top ----------
@@ -1688,11 +1748,13 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       <div class="toolgrid">
         <button id="tDraw"><svg viewBox="0 0 24 24" fill="none" stroke="#E0287D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg>Draw / write<small>Write notes and sketch right on the map</small></button>
         <button id="tMeasure"><svg viewBox="0 0 24 24" fill="none" stroke="#F28C28" stroke-width="2" stroke-linejoin="round"><rect x="2" y="8" width="20" height="8" rx="1.5" transform="rotate(-30 12 12)"/><path d="M7.2 10.6l1 1.8M10 9l1.6 2.8M12.8 7.4l1 1.8M15.6 5.8l1.6 2.8" stroke-linecap="round"/></svg>Measure<small>Distance between spots, or the area inside</small></button>
+        <button id="tTrail" style="grid-column:1/-1"><span style="font-size:28px;line-height:1">🥾</span>Plan a trail<small>Drive to the trailhead, parking, then the trail — length, climb and difficulty</small></button>
         <button id="tProp" style="grid-column:1/-1"><span style="font-size:28px;line-height:1">🏠</span>Who owns this?<small>Tap any spot to look up the property and owner</small></button>
       </div>`);
     $('tDraw').onclick=()=>{closeSheet();if(ms.on)msClose();skOpen()};
     $('tMeasure').onclick=()=>{closeSheet();if(skOn)skClose();msOpen()};
     $('tProp').onclick=()=>{closeSheet();if(skOn)skClose();if(ms.on)msClose();propOpen()};
+    $('tTrail').onclick=()=>{closeSheet();if(skOn)skClose();if(ms.on)msClose();showTrails()};
   };
 
   // ---------- Property: who owns this? ----------
@@ -2012,11 +2074,12 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
 
   function msOpen(){
+    stopAutoRotate();lockTwist(true);
     ms.on=true;$('mspanel').classList.add('show');document.querySelector('.fab-col').style.display='none';
     document.querySelector('.dock').style.display='none';
     follow=false;$('locBtn').classList.remove('on');msUpdate();
   }
-  function msClose(){ms={on:false,pts:[],area:false};msSyncHandles();document.querySelector('.fab-col').style.display='';$('mspanel').classList.remove('show');document.querySelector('.dock').style.display='';navRedraw()}
+  function msClose(){lockTwist(false);ms={on:false,pts:[],area:false};msSyncHandles();document.querySelector('.fab-col').style.display='';$('mspanel').classList.remove('show');document.querySelector('.dock').style.display='';navRedraw()}
   $('msBtn').onclick=()=>{if(ms.on)msClose();else msOpen()};
   $('msUndo').onclick=()=>{ms.pts.pop();msUpdate()};
   $('msClear').onclick=()=>{ms.pts=[];msUpdate()};
@@ -2366,6 +2429,8 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   function srchKind(p){
     const v=p.osm_value||p.type||'',k=p.osm_key||'';
     if(k==='place'||/city|town|village|hamlet|locality/.test(v))return ['🏘',v?v.replace(/_/g,' '):'Place'];
+    if(k==='highway'&&/path|footway|bridleway|track/.test(v))return ['🥾','Trail'];
+    if(k==='route'&&/hiking|foot/.test(v))return ['🥾','Trail'];
     if(k==='highway')return ['🛣','Road'];
     if(k==='amenity'&&v==='place_of_worship')return ['✝','Church'];
     if(k==='natural'&&/peak|hill/.test(v))return ['⛰','Peak'];
@@ -2439,7 +2504,8 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       <div class="coords">${esc(r.sub||'')}${dd?' · '+dd:''}</div>
       <div class="row"><button class="b-primary" id="scRoute">Route there</button><button class="b-flag" id="scCam">📷 See in camera</button></div>
       <div class="row" style="margin-top:10px"><button class="b-ghost" id="scPin">⚑ Pin it</button><button class="b-ghost" id="scNew">🔍 New search</button><button class="b-ghost" id="scClr">✕ Clear</button></div>`);
-    $('scRoute').onclick=()=>{closeSheet();if(r.icon==='🛣'||/^Road\b/.test(r.sub||'')){startRoadNav(r.name,r.sub,{lat:r.lat,lng:r.lng});return}startNav({name:r.name,sub:r.sub,icon:r.icon||'🔎',lat:r.lat,lng:r.lng})};
+    $('scRoute').onclick=()=>{closeSheet();if(r.icon==='🥾'){planTrail({type:'way',name:r.name,tags:{},lat:r.lat,lng:r.lng,dist:0});return}
+      if(r.icon==='🛣'||/^Road\b/.test(r.sub||'')){startRoadNav(r.name,r.sub,{lat:r.lat,lng:r.lng});return}startNav({name:r.name,sub:r.sub,icon:r.icon||'🔎',lat:r.lat,lng:r.lng})};
     $('scCam').onclick=()=>{closeSheet();openAR();toast('Look for the pink 🔎 label — arrows show which way to turn')};
     $('scPin').onclick=()=>{newPinAt(r.lat,r.lng,r.name);closeSheet()};
     $('scNew').onclick=showSearch;
@@ -2470,6 +2536,25 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
         if(last&&Math.abs(p.x-last.x)+Math.abs(p.y-last.y)<1.5)continue;d+=(last?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);last=p}return d};
     let h=hasT?ownSvg(pathOf,P)+propSvg(pathOf)+skSvg(pathOf)+trkSvg(pathOf,P)+msSvg(pathOf,P):'';
     if(!nav){svg.innerHTML=h;return}
+    if(trip&&trip.ready&&navRoutePts){
+      for(const g of trip.gaps){const seg=routeSlice(g.a,g.b);const d=pathOf(seg);
+        if(d)h+=`<path d="${d}" fill="none" stroke="#D32F2F" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".75"/>`}
+      const z=map.getZoom(),W=innerWidth,H=innerHeight;
+      for(const st of trip.stops){const p=P([st.lat,st.lng]);if(p.x<-20||p.x>W+20||p.y<-20||p.y>H+20)continue;
+        const fuel=st.kind==='fuel',col=fuel?'#E8711A':'#1E7FD8';
+        if(z>=11)h+=`<g transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})"><circle r="12" fill="${col}" stroke="#fff" stroke-width="2.5"/><text y="5" text-anchor="middle" font-size="13">${fuel?'⛽':'🚻'}</text></g>`;
+        else h+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="${col}" stroke="#fff" stroke-width="1.5"/>`;
+      }
+    }
+    if(nav&&nav.trail){
+      const T=nav.trail,flat=[];T.segs.forEach(sg=>{sg.forEach(q=>flat.push(q));flat.push(null)});
+      const d=pathOf(flat);
+      if(d)h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/><path d="${d}" fill="none" stroke="#2E7D32" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>`;
+      if(T.park&&T.start){const a=P([T.park.lat,T.park.lng]),b=P(T.start);
+        h+=`<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#2E7D32" stroke-width="3" stroke-dasharray="3 6" stroke-linecap="round"/>`;
+        h+=`<g transform="translate(${a.x.toFixed(1)},${a.y.toFixed(1)})"><rect x="-13" y="-13" width="26" height="26" rx="6" fill="#1E5FD8" stroke="#fff" stroke-width="2.5"/><text x="0" y="6" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="800" font-size="17" fill="#fff">P</text></g>`}
+      if(T.start){const c=P(T.start);h+=`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="8" fill="#2E7D32" stroke="#fff" stroke-width="3"/>`}
+    }
     if(nav&&nav.roadSegs){
       const flat=[];nav.roadSegs.forEach(sg=>{sg.forEach(q=>flat.push(q));flat.push(null)});
       const d=pathOf(flat);
@@ -2497,6 +2582,294 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   map.on('move zoom rotate viewreset resize moveend zoomend rotateend',navRedraw);
   map.on('zoomanim',()=>{if(nav||trkHas()||skHas()||msHas())$('navSvg').style.opacity=0});
   map.on('zoomend',()=>{$('navSvg').style.opacity=1});
+  // ---------- Turn-by-turn directions ----------
+  // Like Google Maps: a banner with the next turn and the distance to it, the turn after that,
+  // spoken directions, arrival time, and automatic re-routing if you miss a turn.
+  // (The map stays north-up while a route is showing, as you asked earlier.)
+  let navSteps=null,navCum=null,stepAt=[],tbtOn=false,tbtVoice=true,tbtStep=0,tbtSaid={},tbtOff=0,tbtHint=null,tbtLastReroute=0,navTotal=0,navDur=0;
+  try{tbtVoice=localStorage.getItem('onpoint.voice')!=='0'}catch(e){}
+  const MOD_ANG={'uturn':180,'sharp right':135,'right':90,'slight right':45,'straight':0,'slight left':-45,'left':-90,'sharp left':-135};
+  function turnIcon(st,size){
+    const m=st.maneuver||{},t=m.type,mod=m.modifier||'straight',c='currentColor';
+    if(t==='arrive')return `<svg viewBox="0 0 48 48" width="${size}" height="${size}"><path d="M14 42V8" stroke="${c}" stroke-width="4" stroke-linecap="round"/><path d="M15 9h22l-5 7 5 7H15z" fill="${c}"/></svg>`;
+    if(t==='roundabout'||t==='rotary'||t==='exit roundabout'||t==='roundabout turn')
+      return `<svg viewBox="0 0 48 48" width="${size}" height="${size}"><circle cx="24" cy="22" r="9" fill="none" stroke="${c}" stroke-width="4"/><path d="M24 31v13" stroke="${c}" stroke-width="4" stroke-linecap="round"/><path d="M31 15l6-6m0 0h-7m7 0v7" fill="none" stroke="${c}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    if(mod==='uturn')return `<svg viewBox="0 0 48 48" width="${size}" height="${size}"><path d="M30 44V20a8 8 0 0 0-16 0v4" fill="none" stroke="${c}" stroke-width="4.5" stroke-linecap="round"/><path d="M7 20l7 8 7-8" fill="none" stroke="${c}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const a=MOD_ANG[mod]??0;
+    // a stem coming up from the bottom, then bending toward the new direction
+    const r=Math.PI/180,ex=24+Math.sin(a*r)*16,ey=22-Math.cos(a*r)*16;
+    return `<svg viewBox="0 0 48 48" width="${size}" height="${size}"><path d="M24 44V22 L${ex.toFixed(1)} ${ey.toFixed(1)}" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`+
+      `<g transform="translate(${ex.toFixed(1)} ${ey.toFixed(1)}) rotate(${a})"><path d="M-8 6 L0 -4 L8 6" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g></svg>`;
+  }
+  const ord=n=>n+(['th','st','nd','rd'][(n%100>10&&n%100<14)?0:n%10]||'th');
+  function stepText(st,dest){
+    const m=st.maneuver||{},t=m.type,mod=m.modifier,road=st.name||st.ref||'',onto=road?` onto ${road}`:'',on=road?` on ${road}`:'';
+    const side=mod&&/left|right/.test(mod)?mod.replace('slight ','slightly ').replace('sharp ','sharp '):'';
+    switch(t){
+      case 'depart':return `Head ${['north','northeast','east','southeast','south','southwest','west','northwest'][Math.round(((m.bearing_after||0)%360)/45)%8]}${on}`;
+      case 'arrive':return `Arrive at ${dest}${mod&&/left|right/.test(mod)?` — on your ${mod.includes('left')?'left':'right'}`:''}`;
+      case 'merge':return `Merge${side?' '+side:''}${onto}`;
+      case 'on ramp':return `Take the ramp${side?' on the '+(mod.includes('left')?'left':'right'):''}${onto}`;
+      case 'off ramp':return `Take the exit${st.exits?' '+st.exits:''}${st.destinations?' toward '+st.destinations:onto}`;
+      case 'fork':return `Keep ${mod&&mod.includes('left')?'left':'right'} at the fork${onto}`;
+      case 'end of road':return `At the end of the road, turn ${mod&&mod.includes('left')?'left':'right'}${onto}`;
+      case 'roundabout':case 'rotary':return `At the roundabout, take the ${ord(m.exit||1)} exit${onto}`;
+      case 'exit roundabout':case 'exit rotary':return `Exit the roundabout${onto}`;
+      case 'new name':case 'continue':return mod==='straight'||!mod?`Continue${onto||' straight'}`:`Keep ${mod.includes('left')?'left':'right'}${onto}`;
+      case 'notification':return `Continue${on}`;
+      default:
+        if(mod==='uturn')return `Make a U-turn${onto}`;
+        if(mod==='straight')return `Continue straight${onto}`;
+        return `Turn ${side||mod||''}${onto}`;
+    }
+  }
+  function tbtSetRoute(r){
+    navSteps=(r.legs&&r.legs[0]&&r.legs[0].steps)||[];navTotal=r.distance;navDur=r.duration;
+    navCum=routeCum();stepAt=[];let acc=0;navSteps.forEach(st=>{stepAt.push(acc);acc+=st.distance});
+    const scale=acc>0?navTotal/acc:1;stepAt=stepAt.map(v=>v*scale);
+    tbtHint=null;tbtSaid={};tbtStep=0;
+    const dest=nav?nav.name:'your destination';
+    $('navSteps').innerHTML=navSteps.map((st,i)=>`<div class="stp" id="stp${i}">${turnIcon(st,26)}<span>${esc(stepText(st,dest))}</span><span class="mi">${st.distance>0&&i<navSteps.length-1?fmtDist(st.distance):''}</span></div>`).join('');
+    if(tbtOn)tbtUpdate(true);
+  }
+  function say(t){
+    if(!tbtVoice||!('speechSynthesis' in window))return;
+    try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=1.02;speechSynthesis.speak(u)}catch(e){}
+  }
+  const spokenDist=m=>{const ft=m*3.28084;if(ft<1000)return `${Math.round(ft/100)*100||100} feet`;const mi=m/1609.34;return mi<1?`${mi<0.4?'a quarter':mi<0.7?'half a':'three quarters of a'} mile`:`${Math.round(mi*10)/10} miles`};
+  function tbtStart(){
+    if(!navSteps||!navSteps.length){toast('Waiting for the route…');return}
+    tbtOn=true;follow=true;$('locBtn').classList.add('on');
+    $('tbt').style.display='';$('tbtbar').style.display='';$('navcard').classList.remove('show');
+    document.querySelector('.top').style.visibility='hidden';
+    if(me)map.setView(meShown()||[me.lat,me.lng],Math.max(map.getZoom(),16));
+    try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>{tbtWake=w}).catch(()=>{})}catch(e){}
+    tbtUpdate(true);
+    say(`Starting route to ${nav.name}. `+stepText(navSteps[0],nav.name));
+  }
+  let tbtWake=null;
+  function tbtStop(){
+    if(!tbtOn)return;tbtOn=false;
+    $('tbt').style.display='none';$('tbtbar').style.display='none';document.querySelector('.top').style.visibility='';
+    try{speechSynthesis.cancel()}catch(e){}
+    try{tbtWake&&tbtWake.release()}catch(e){}tbtWake=null;
+  }
+  function tbtUpdate(force){
+    if(!navSteps||!navSteps.length||!me||!navCum||!navRoutePts)return;
+    const a=alongOf(me.lat,me.lng,navCum,tbtHint);tbtHint=a.i;
+    // which step are we in: the last step that starts behind us
+    let k=0;for(let i=0;i<stepAt.length;i++)if(stepAt[i]<=a.along+5)k=i;
+    const next=Math.min(k+1,navSteps.length-1),toTurn=Math.max(0,(stepAt[next]??navTotal)-a.along);
+    // steps list: grey out finished ones
+    navSteps.forEach((_,i)=>{const el=$('stp'+i);if(el)el.classList.toggle('done',i<=k&&i!==next)});
+    const left=Math.max(0,navTotal-a.along),secs=navDur*(left/Math.max(navTotal,1));
+    if(tbtOn){
+      const st=navSteps[next],dest=nav?nav.name:'';
+      $('tbtIc').innerHTML=turnIcon(st,56);$('tbtDist').textContent=st.maneuver.type==='arrive'&&toTurn<30?'Arriving':fmtDist(toTurn);
+      $('tbtTxt').textContent=stepText(st,dest);
+      const after=navSteps[next+1];
+      $('tbtThen').innerHTML=after&&st.distance<600?`Then ${turnIcon(after,22)} ${esc(stepText(after,dest))}`:'';
+      const eta=new Date(Date.now()+secs*1000);
+      $('tbtEta').textContent=eta.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+      $('tbtLeft').textContent=` arrival · ${fmtDist(left)} · ${fmtDur(secs)}`;
+      // spoken: early heads-up, close warning, and "now"
+      const fast=(gpsSpeed||0)>15,early=fast?1600:500,near=fast?320:120,key=next+':';
+      if(toTurn<early&&toTurn>near*1.6&&!tbtSaid[key+'e']){tbtSaid[key+'e']=1;say(`In ${spokenDist(toTurn)}, ${stepText(st,dest).replace(/^./,c=>c.toLowerCase())}`)}
+      if(toTurn<=near&&toTurn>25&&!tbtSaid[key+'n']){tbtSaid[key+'n']=1;say(`In ${spokenDist(toTurn)}, ${stepText(st,dest).replace(/^./,c=>c.toLowerCase())}`)}
+      if(toTurn<=25&&!tbtSaid[key+'x']){tbtSaid[key+'x']=1;say(st.maneuver.type==='arrive'?`You have arrived at ${dest}`:stepText(st,dest))}
+      if(st.maneuver.type==='arrive'&&toTurn<20){setTimeout(()=>{if(tbtOn){tbtStop();toast(`You’ve arrived at ${dest}`)}},4000)}
+    }
+    // off the route? find a new one (twice in a row, at most every 15 s)
+    if(a.off>60){tbtOff++;if(tbtOff>=2&&Date.now()-tbtLastReroute>15000){tbtOff=0;tbtLastReroute=Date.now();if(tbtOn)say('Rerouting');navRoute()}}else tbtOff=0;
+  }
+  $('navGo').onclick=tbtStart;
+  $('tbtEnd').onclick=()=>{tbtStop();endNav()};
+  $('tbtVoice').onclick=()=>{tbtVoice=!tbtVoice;try{localStorage.setItem('onpoint.voice',tbtVoice?'1':'0')}catch(e){}
+    $('tbtVoice').textContent=tbtVoice?'🔊':'🔇';if(!tbtVoice)try{speechSynthesis.cancel()}catch(e){};toast(tbtVoice?'Voice on':'Voice off')};
+  $('tbtList').onclick=()=>{
+    openSheet(`<h2 id="sheetTitle">Directions to ${esc(nav?nav.name:'')}</h2><div class="triplist" style="max-height:60vh">${$('navSteps').innerHTML}</div>
+      <div class="row"><button class="b-primary" id="tlOk">Back to driving</button></div>`);$('tlOk').onclick=closeSheet};
+  setTimeout(()=>{$('tbtVoice').textContent=tbtVoice?'🔊':'🔇'},0);
+
+  // ---------- Road trips: gas stations & rest stops along the route ----------
+  // For driving routes, finds gas stations and rest areas within about a mile of the route,
+  // marks them on the map, shows the next ones ahead as you drive, and warns about long stretches
+  // with no gas (over 50 mi) or no rest stop (over 80 mi) — those stretches are drawn in red.
+  let trip=null;
+  const GAS_GAP=50*1609.34,REST_GAP=80*1609.34;
+  function routeCum(){const c=[0];for(let i=1;i<navRoutePts.length;i++)c.push(c[i-1]+haversine({lat:navRoutePts[i-1][0],lng:navRoutePts[i-1][1]},{lat:navRoutePts[i][0],lng:navRoutePts[i][1]}));return c}
+  function alongOf(lat,lng,cum,hint){
+    // nearest route vertex (search everything, or near a hint for speed while driving)
+    let bi=0,bd=1e18;const n=navRoutePts.length,lo=hint!=null?Math.max(0,hint-400):0,hi=hint!=null?Math.min(n,hint+400):n;
+    for(let i=lo;i<hi;i++){const q=navRoutePts[i],dl=(q[0]-lat)*110540,dg=(q[1]-lng)*111320*Math.cos(lat*Math.PI/180),d=dl*dl+dg*dg;if(d<bd){bd=d;bi=i}}
+    return {i:bi,along:cum[bi],off:Math.sqrt(bd)};
+  }
+  function routeSlice(a,b){if(!trip||!trip.cum)return[];const c=trip.cum,out=[];for(let i=0;i<c.length;i++)if(c[i]>=a&&c[i]<=b)out.push(navRoutePts[i]);return out}
+  async function tripOnRoute(totalM){
+    if(navMode!=='car'||!nav||!navRoutePts||totalM<8000){trip=null;$('navTrip').style.display='none';return}
+    const key=nav.lat.toFixed(3)+','+nav.lng.toFixed(3);
+    const cum=routeCum();
+    if(trip&&trip.key===key&&trip.raw){trip.cum=cum;tripCompute();return}     // re-route: reuse the stops
+    trip={key,cum,raw:null,stops:[],gaps:[],ready:false,total:totalM};
+    tripCard('Finding gas stations and rest stops along the way…');
+    // sample the route every ~2 km and ask in chunks (servers limit the size of one request)
+    const samp=[];let last=-1e9;for(let i=0;i<navRoutePts.length;i++)if(cum[i]-last>=2000||i===navRoutePts.length-1){samp.push(navRoutePts[i]);last=cum[i]}
+    const raw=new Map(),myTrip=trip;
+    for(let k=0;k<samp.length;k+=60){
+      if(trip!==myTrip)return;
+      const pts=samp.slice(Math.max(0,k-1),k+60).map(q=>q[0].toFixed(5)+','+q[1].toFixed(5)).join(',');
+      const q=`[out:json][timeout:25];(nwr["amenity"="fuel"](around:1600,${pts});nwr["highway"~"^(rest_area|services)$"](around:1600,${pts}););out center tags;`;
+      try{const d=await overpass(q,30000);
+        (d.elements||[]).forEach(el=>{const lat=el.lat??(el.center&&el.center.lat),lng=el.lon??(el.center&&el.center.lon);if(lat==null)return;
+          const t=el.tags||{};raw.set(el.type+el.id,{lat,lng,kind:t.amenity==='fuel'?'fuel':'rest',services:t.highway==='services',
+            name:t.brand||t.name||(t.amenity==='fuel'?'Gas station':t.highway==='services'?'Service plaza':'Rest area'),
+            hours:t.opening_hours||'',diesel:t['fuel:diesel']==='yes'})});
+      }catch(e){}
+      if(k===0||k+60>=samp.length)tripCard(`Checking the route… ${Math.min(100,Math.round((k+60)/samp.length*100))}%`);
+    }
+    if(trip!==myTrip)return;
+    trip.raw=[...raw.values()];tripCompute();
+  }
+  function tripCompute(){
+    const c=trip.cum,total=c[c.length-1];trip.total=total;
+    trip.stops=trip.raw.map(st=>{const a=alongOf(st.lat,st.lng,c);return {...st,along:a.along,off:a.off}}).filter(st=>st.off<1700).sort((a,b)=>a.along-b.along);
+    const gas=trip.stops.filter(st=>st.kind==='fuel'||st.services),rest=trip.stops.filter(st=>st.kind==='rest');
+    const gapsOf=(list,limit,kind)=>{const out=[];let prev=0,prevSt=null;
+      for(const st of [...list,{along:total,end:true}]){if(st.along-prev>limit)out.push({a:prev,b:st.along,kind,from:prevSt,to:st.end?null:st});prev=st.along;prevSt=st}return out};
+    trip.gaps=gapsOf(gas,GAS_GAP,'gas');trip.restGaps=gapsOf(rest,REST_GAP,'rest');
+    trip.ready=true;trip.myI=null;tripCard();navRedraw();
+    if(trip.gaps.length)toast(`⚠ ${trip.gaps.length} long stretch${trip.gaps.length>1?'es':''} with no gas on this trip`);
+  }
+  function tripCard(msg){
+    const el=$('navTrip');el.style.display='';
+    if(msg){el.innerHTML=`<div class="sec" style="margin-top:6px">⛽ Road trip</div><p class="fine" style="margin:2px 0">${msg}</p>`;return}
+    const T=trip,mi=m=>(m/1609.34).toFixed(m<16093?1:0);
+    const gasN=T.stops.filter(s=>s.kind==='fuel').length,restN=T.stops.filter(s=>s.kind==='rest').length;
+    const warn=[...T.gaps.map(g=>`<div class="tripwarn"><b>⚠ No gas for ${mi(g.b-g.a)} mi</b>From mile ${mi(g.a)} to ${g.to?'mile '+mi(g.b):'your destination'}${g.from&&g.from.name?` — fill up at <b style="display:inline">${esc(g.from.name)}</b> (mile ${mi(g.from.along)})`:' — leave with a full tank'}.</div>`),
+      ...T.restGaps.map(g=>`<div class="tripwarn" style="background:#EAF2FD;border-color:#B5CDF2;color:#163E73"><b>🚻 No rest area for ${mi(g.b-g.a)} mi</b>From mile ${mi(g.a)} to ${g.to?'mile '+mi(g.b):'the end'} — gas stations in between may still have restrooms.</div>`)].join('');
+    const list=T.stops.map(s=>`<div><span>${s.kind==='fuel'?'⛽':'🚻'}</span><span>${esc(s.name)}${s.diesel?' · diesel':''}${s.off>400?` <span style="color:var(--muted)">(${fmtDist(s.off)} off route)</span>`:''}</span><span class="mi">mi ${mi(s.along)}</span></div>`).join('');
+    $('navTrip').innerHTML=`<div class="sec" style="margin-top:6px">⛽ Road trip · ${mi(T.total)} mi</div>
+      <div class="tripnext"><div id="tripNextGas"><small>Next gas</small><b>—</b></div><div id="tripNextRest"><small>Next rest area</small><b>—</b></div></div>
+      ${warn||'<p class="fine" style="margin:2px 0">✓ Gas within every 50 miles along this route.</p>'}
+      <p class="fine" style="margin:4px 0">${gasN} gas station${gasN!==1?'s':''} and ${restN} rest area${restN!==1?'s':''} within about a mile of the route. Long no-gas stretches are red on the map.</p>
+      <details><summary style="font-weight:600;padding:4px 0">All stops along the way</summary><div class="triplist">${list||'None found'}</div></details>`;
+    tripLive();
+  }
+  function tripLive(){
+    if(!trip||!trip.ready||!me||!$('tripNextGas'))return;
+    const a=alongOf(me.lat,me.lng,trip.cum,trip.myI);trip.myI=a.i;
+    const ahead=k=>trip.stops.find(s=>(k==='fuel'?(s.kind==='fuel'||s.services):s.kind==='rest')&&s.along>a.along+50);
+    const show=(id,st,lbl)=>{const el=$(id);if(!el)return;el.innerHTML=st?`<small>${lbl}</small><b>${fmtDist(st.along-a.along)}</b>${esc(st.name)}`:`<small>${lbl}</small><b>None ahead</b>on this route`};
+    show('tripNextGas',ahead('fuel'),'Next gas');show('tripNextRest',ahead('rest'),'Next rest area');
+    // heads-up when a long no-gas stretch is coming
+    const g=trip.gaps.find(g=>g.a>a.along&&g.a-a.along<16000);
+    if(g&&!g.warned){g.warned=true;toast(`⚠ Last gas for ${Math.round((g.b-g.a)/1609.34)} miles is coming up — fill up now`)}
+  }
+
+  // ---------- Trail planner ----------
+  // Find trails nearby (OpenStreetMap), then show: the drive to the trailhead parking, the walk from
+  // the car to the trail, and the trail itself — length, climb, difficulty and about how long it takes.
+  // Climb comes from free elevation data (Open-Meteo); difficulty uses the trail's own grade when
+  // mapped, otherwise the National Park Service-style rating from distance and climb.
+  const segLen=sg=>{let L=0;for(let i=1;i<sg.length;i++)L+=haversine({lat:sg[i-1][0],lng:sg[i-1][1]},{lat:sg[i][0],lng:sg[i][1]});return L};
+  async function showTrails(){
+    const c=me||map.getCenter();
+    openSheet(`<h2 id="sheetTitle">🥾 Trails nearby</h2><p class="fine" id="trNote">Looking for trails within 15 miles…</p><ul class="sres" id="trList"></ul>`);
+    if(!navigator.onLine){$('trNote').textContent='Trail search needs a signal.';return}
+    const q=`[out:json][timeout:25][bbox:${bboxOf(c.lat,c.lng,24000)}];
+(relation["route"~"^(hiking|foot|walking)$"]["name"];
+ way["highway"~"^(path|footway|bridleway|track)$"]["name"];);
+out tags center 300;`;
+    let d;try{d=await overpass(q,30000)}catch(e){$('trNote').textContent='Couldn’t reach the map servers — try again in a minute.';return}
+    const byName=new Map();
+    for(const el of d.elements||[]){const t=el.tags||{},n=t.name;if(!n||!el.center)continue;
+      if(el.type==='way'&&t.highway!=='path'&&!/trail|path|loop|greenway|walk|hike/i.test(n))continue;
+      const dist=haversine(c,{lat:el.center.lat,lng:el.center.lon});
+      const prev=byName.get(n);
+      if(!prev||(el.type==='relation'&&prev.type!=='relation')||dist<prev.dist)byName.set(n,{type:el.type,id:el.id,name:n,tags:t,lat:el.center.lat,lng:el.center.lon,dist});
+    }
+    const list=[...byName.values()].sort((a,b)=>a.dist-b.dist).slice(0,40);
+    window._trList=list;
+    $('trNote').textContent=list.length?'Tap a trail to plan the trip.':'No named trails found nearby.';
+    $('trList').innerHTML=list.map((t,i)=>`<li><button data-i="${i}"><span class="ic">🥾</span><span style="min-width:0"><span class="t">${esc(t.name)}</span><span class="s">${t.type==='relation'?'Marked hiking route':esc((t.tags.highway||'').replace('track','Dirt track').replace('path','Path').replace('footway','Footpath').replace('bridleway','Horse trail'))}${t.tags.sac_scale?' · '+esc(t.tags.sac_scale.replace(/_/g,' ')):''}</span></span><span class="d">${fmtDist(t.dist)}</span></button></li>`).join('');
+    $('trList').onclick=e=>{const b=e.target.closest('[data-i]');if(b)planTrail(list[+b.dataset.i])};
+  }
+  function trailDifficulty(tags,miles,gainFt){
+    const sac={hiking:['Easy','#2E9E5B'],mountain_hiking:['Moderate','#D9A21C'],demanding_mountain_hiking:['Hard','#E8711A'],
+      alpine_hiking:['Very hard','#B3261E'],demanding_alpine_hiking:['Extreme','#7B1C1C'],difficult_alpine_hiking:['Extreme','#7B1C1C']}[tags&&tags.sac_scale];
+    const r=Math.sqrt(Math.max(0,gainFt)*2*miles);     // NPS (Shenandoah) style rating
+    const byNum=r<50?['Easy','#2E9E5B']:r<100?['Moderate','#D9A21C']:r<150?['Moderately hard','#E8711A']:r<200?['Hard','#C2401C']:['Very hard','#B3261E'];
+    return {label:(sac||byNum)[0],color:(sac||byNum)[1],score:Math.round(r),src:sac?'trail grade':'distance & climb'};
+  }
+  async function planTrail(t){
+    openSheet(`<h2 id="sheetTitle">🥾 ${esc(t.name)}</h2><p class="fine" id="tpNote">Getting the trail…</p>`);
+    const note=x=>{const el=$('tpNote');if(el)el.textContent=x};
+    let segs=[];
+    try{
+      const q=t.type==='relation'?`[out:json][timeout:25];relation(${t.id});way(r);out geom;`
+        :`[out:json][timeout:25][bbox:${bboxOf(t.lat,t.lng,8000)}];way["highway"]["name"="${String(t.name).replace(/["\\]/g,'')}"];out geom;`;
+      const d=await overpass(q,30000);
+      segs=(d.elements||[]).filter(w=>w.geometry).map(w=>w.geometry.filter(Boolean).map(g=>[g.lat,g.lon]));
+    }catch(e){}
+    if(!segs.length){note('Couldn’t get this trail’s path — try again in a minute.');return}
+    const lenM=segs.reduce((a,sg)=>a+segLen(sg),0),miles=lenM/1609.34;
+    // trailhead parking: closest parking / trailhead to any point of the trail
+    note('Finding the trailhead parking…');
+    const all=[];segs.forEach(sg=>sg.forEach(q=>all.push(q)));
+    const bb=L.latLngBounds(all).pad(0.15);let park=null;
+    try{
+      const q=`[out:json][timeout:20][bbox:${[bb.getSouth()-0.01,bb.getWest()-0.012,bb.getNorth()+0.01,bb.getEast()+0.012].map(v=>v.toFixed(5)).join(',')}];
+(node["highway"="trailhead"];nwr["amenity"="parking"];);out center tags 120;`;
+      const d=await overpass(q,25000);let best=1e12;
+      for(const el of d.elements||[]){const lat=el.lat??(el.center&&el.center.lat),lng=el.lon??(el.center&&el.center.lon);if(lat==null)continue;
+        let dm=1e12;for(let i=0;i<all.length;i+=Math.max(1,Math.floor(all.length/300)))dm=Math.min(dm,haversine({lat,lng},{lat:all[i][0],lng:all[i][1]}));
+        const tg=el.tags||{},bonus=(tg.highway==='trailhead'||/trail/i.test(tg.name||''))?0.5:1;
+        if(dm<1500&&dm*bonus<best){best=dm*bonus;park={lat,lng,name:tg.name||(tg.highway==='trailhead'?'Trailhead':'Parking'),toTrail:dm,trailhead:tg.highway==='trailhead'}}}
+    }catch(e){}
+    // where you join the trail: the trail point nearest the parking (or nearest you)
+    const from=park||me||t;let start=all[0],sd=1e12;
+    for(const q of all){const dd=haversine(from,{lat:q[0],lng:q[1]});if(dd<sd){sd=dd;start=q}}
+    // climb: elevation at up to 100 points along the trail
+    note('Working out the climb…');
+    let gainFt=null,lossFt=null,minFt=null,maxFt=null,prof=null;
+    try{
+      const step=Math.max(1,Math.ceil(all.length/100)),smp=all.filter((_,i)=>i%step===0).slice(0,100);
+      const d=await (await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${smp.map(q=>q[0].toFixed(5)).join(',')}&longitude=${smp.map(q=>q[1].toFixed(5)).join(',')}`)).json();
+      const el=(d.elevation||[]).map(m=>m*3.28084);
+      if(el.length>1){let g=0,l=0,ref=el[0];
+        for(const v of el){if(v-ref>6){g+=v-ref;ref=v}else if(ref-v>6){l+=ref-v;ref=v}}  // ignore bumps under ~6 ft
+        gainFt=Math.round(g);lossFt=Math.round(l);minFt=Math.round(Math.min(...el));maxFt=Math.round(Math.max(...el));prof=el}
+    }catch(e){}
+    const diff=trailDifficulty(t.tags,miles,gainFt||0);
+    const hours=miles/2.5+(gainFt||0)/2000;     // ~2.5 mph walking + 1 hr per 2,000 ft of climb
+    const trail={name:t.name,tags:t.tags,segs,miles,gainFt,lossFt,minFt,maxFt,prof,diff,hours,park,start,loop:haversine({lat:all[0][0],lng:all[0][1]},{lat:all[all.length-1][0],lng:all[all.length-1][1]})<150};
+    closeSheet();
+    const dest=park||{lat:start[0],lng:start[1]};
+    navMode='car';try{localStorage.setItem('onpoint.navMode','car')}catch(e){}
+    startNav({name:park?park.name:t.name,sub:park?`Parking for ${t.name}`:'Trail start (no mapped parking found)',icon:park?'🅿️':'🥾',lat:dest.lat,lng:dest.lng,trail});
+  }
+  function trailCardFill(T){
+    const el=$('navTrail');if(!el)return;
+    const fmtH=h=>h<1?Math.round(h*60)+' min':Math.floor(h)+' h '+Math.round((h%1)*60)+' min';
+    let prof='';
+    if(T.prof&&T.prof.length>1){const lo=Math.min(...T.prof),hi=Math.max(...T.prof),rg=Math.max(hi-lo,30),W=300,H=60;
+      const pts=T.prof.map((v,i)=>`${(i/(T.prof.length-1)*W).toFixed(1)},${(H-4-(v-lo)/rg*(H-12)).toFixed(1)}`).join(' ');
+      prof=`<svg class="tprof" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polygon points="0,${H} ${pts} ${W},${H}" fill="rgba(46,125,50,.22)"/><polyline points="${pts}" fill="none" stroke="#2E7D32" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>low ${T.minFt.toLocaleString()} ft</span><span>elevation along the trail</span><span>high ${T.maxFt.toLocaleString()} ft</span></div>`}
+    el.innerHTML=`<div class="sec" style="margin-top:6px">🥾 ${esc(T.name)} <span class="tdiff" style="background:${T.diff.color};margin-left:6px">${T.diff.label}</span></div>
+      <div class="tlegs">1 · <b>Drive</b> to ${T.park?esc(T.park.name):'the trail start'} (route above)<br>
+        2 · <b>${T.park?'Walk from parking to the trail':'Start the trail'}</b>${T.park?` — about ${fmtDist(T.park.toTrail)}`:''}<br>
+        3 · <b>The trail</b> — ${T.loop?'loop':'one way'}</div>
+      <div class="tstats"><div><small>Length</small><b>${T.miles.toFixed(1)} mi</b></div><div><small>Climb</small><b>${T.gainFt!=null?T.gainFt.toLocaleString()+' ft':'—'}</b></div>
+        <div><small>Time</small><b>${fmtH(T.hours)}</b></div><div><small>${T.loop?'Loop':'Out & back'}</small><b>${T.loop?T.miles.toFixed(1):(T.miles*2).toFixed(1)} mi</b></div></div>
+      ${prof}
+      <p class="fine" style="margin:4px 0">Difficulty from ${T.diff.src}${T.tags&&T.tags.surface?` · surface: ${esc(T.tags.surface)}`:''}${T.tags&&T.tags.trail_visibility?` · trail visibility: ${esc(T.tags.trail_visibility)}`:''}. Time is a walking estimate (2.5 mph + climb).</p>
+      <div class="row" style="margin-top:4px"><button class="b-ghost" id="tpTrack">● Track my hike</button><button class="b-ghost" id="tpPark">⚑ Pin parking</button></div>`;
+    el.style.display='';
+    $('tpTrack').onclick=()=>{if(trk.on){toast('Already tracking');return}trkStart()};
+    $('tpPark').onclick=()=>{const p=T.park||{lat:T.start[0],lng:T.start[1],name:T.name+' start'};newPinAt(p.lat,p.lng,(T.park?'Parking – ':'')+T.name)};
+  }
+
   // ---- Roads: highlight the whole road, route to its nearest point ----
   function roadSegsFromPts(pts){
     // saved roads are one list of points; split where it jumps (a separate stretch of the same road)
@@ -2543,6 +2916,8 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
 
   function startNav(t){
+    stopAutoRotate();
+    if(t.trail)setTimeout(()=>trailCardFill(t.trail),0);else{$('navTrail').style.display='none';$('navTrail').innerHTML=''}
     nav=t;navRouteFrom=null;navRoutePts=null;navGap=null;
     $('navName').textContent=`${t.icon||'📍'} ${t.name}`;
     $('navSub').textContent=[t.sub,t.ele!=null?Math.round(t.ele*3.28084).toLocaleString()+' ft high':''].filter(Boolean).join(' · ');
@@ -2552,6 +2927,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     navUpdate();
     const fitPts=[[t.lat,t.lng]];if(me)fitPts.push([me.lat,me.lng]);
     if(t.roadSegs)t.roadSegs.forEach(sg=>sg.forEach((q,i)=>{if(i%5===0)fitPts.push(q)}));
+    if(t.trail)t.trail.segs.forEach(sg=>sg.forEach((q,i)=>{if(i%5===0)fitPts.push(q)}));
     if(fitPts.length>1)map.fitBounds(L.latLngBounds(fitPts),{paddingTopLeft:[40,110],paddingBottomRight:[40,Math.round(innerHeight*.42)],maxZoom:17});
     else map.setView([t.lat,t.lng],15);
     navRoute();navRedraw();
@@ -2568,6 +2944,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     $('navStraight').textContent=`${fmtDist(d)} ${CARD[Math.round(brg/22.5)%16]}`;
     if(navRouteFrom&&haversine(me,navRouteFrom)>250&&Date.now()-navLastRoute>20000)navRoute();
     if(d<25&&!nav.arrived){nav.arrived=true;toast(`You’ve reached ${nav.name}`)}
+    tripLive();tbtUpdate();
     navRedraw();
   }
   async function navRoute(){
@@ -2576,7 +2953,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     const seq=++navReq;navLastRoute=Date.now();navRouteFrom={lat:me.lat,lng:me.lng};
     $('navRoute').textContent='Finding…';$('navRouteLbl').textContent=navMode==='car'?'By road':navMode==='foot'?'Walking':'Biking';
     try{
-      const url=`${ROUTERS[navMode]}${me.lng.toFixed(6)},${me.lat.toFixed(6)};${nav.lng.toFixed(6)},${nav.lat.toFixed(6)}?overview=full&geometries=geojson`;
+      const url=`${ROUTERS[navMode]}${me.lng.toFixed(6)},${me.lat.toFixed(6)};${nav.lng.toFixed(6)},${nav.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true`;
       const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),20000);
       const d=await (await fetch(url,{signal:ctl.signal})).json();clearTimeout(tm);
       if(seq!==navReq||!nav)return;
@@ -2586,10 +2963,14 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       const end=navRoutePts[navRoutePts.length-1];
       navGap=haversine({lat:end[0],lng:end[1]},nav)>30?[end,[nav.lat,nav.lng]]:null;
       $('navRoute').textContent=`${fmtDist(r.distance)} · ${fmtDur(r.duration)}`;
+      tbtSetRoute(r);
+      tripOnRoute(r.distance);
       navRedraw();
     }catch(e){if(seq===navReq)$('navRoute').textContent='Couldn’t route'}
   }
   function endNav(){
+    tbtStop();navSteps=null;
+    $('navTrail').style.display='none';$('navTrail').innerHTML='';trip=null;$('navTrip').style.display='none';$('navTrip').innerHTML='';
     nav=null;navReq++;navRoutePts=null;navGap=null;$('navSvg').innerHTML='';navRedraw();
     $('navcard').classList.remove('show');document.querySelector('.dock').style.display='';
   }
@@ -2941,7 +3322,9 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     if(ms.on){ms.pts.push([+e.latlng.lat.toFixed(7),+e.latlng.lng.toFixed(7)]);msUpdate();return}
     if(tEd){if(tEd.mode==='add')tEdAddPoint(e.latlng.lat,e.latlng.lng);return}
     if(dlSelecting){if(dlMode==='trail'){dlTrail.push([+e.latlng.lat.toFixed(6),+e.latlng.lng.toFixed(6)]);redrawEdit()}return}
-    if($('sheet').classList.contains('show')){closeSheet();return} $('hint').style.opacity=0; newPinAt(e.latlng.lat,e.latlng.lng); });
+    if($('sheet').classList.contains('show')){closeSheet();return}
+    if(nav){toast('Pins are off while a route is showing — tap Done to drop pins again');return}
+    $('hint').style.opacity=0; newPinAt(e.latlng.lat,e.latlng.lng); });
   $('pinHereBtn').onclick=()=>{ if(!me){toast('No GPS fix yet — tap the map to pin a spot instead');return} newPinAt(me.lat,me.lng); };
   $('listBtn').onclick=showList;
 })();
