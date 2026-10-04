@@ -236,7 +236,10 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
 .stp{display:flex;gap:10px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--line)}
 .stp svg{width:26px;height:26px;flex:none}
 .stp.done{opacity:.4}
-.navcard{max-height:72vh;overflow-y:auto;position:absolute;left:0;right:0;bottom:0;z-index:940;background:var(--paper);border-radius:18px 18px 0 0;padding:12px 16px calc(var(--safe-b) + 14px);box-shadow:0 -4px 20px rgba(0,0,0,.25);display:none}
+.ncgrab{position:sticky;top:-12px;margin:-12px -16px 4px;padding:8px 16px 4px;background:var(--paper);z-index:2;text-align:center;touch-action:none;cursor:grab;border-radius:18px 18px 0 0}
+.ncgrab span{font-size:12px;color:var(--muted);font-weight:600}
+.navcard.dragging{transition:none!important}
+.navcard{transition:transform .28s cubic-bezier(.2,.8,.2,1);will-change:transform;max-height:72vh;overflow-y:auto;position:absolute;left:0;right:0;bottom:0;z-index:940;background:var(--paper);border-radius:18px 18px 0 0;padding:12px 16px calc(var(--safe-b) + 14px);box-shadow:0 -4px 20px rgba(0,0,0,.25);display:none}
 .navcard.show{display:block}
 .navcard h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:24px;margin:0;line-height:1.15}
 .navcard .nsub{font-size:14px;color:var(--muted);margin:2px 0 8px}
@@ -357,6 +360,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   <button id="tbtVoice" aria-label="Voice on/off">🔊</button><button id="tbtList" aria-label="All steps">☰</button><button id="tbtEnd" class="end">End</button>
 </div>
 <div class="navcard" id="navcard" role="dialog" aria-label="Route">
+  <div class="ncgrab" id="ncGrab" aria-label="Slide down to see the map"><div class="grab" style="margin:0 auto 4px"></div><span id="ncHint">Slide down to see the map</span></div>
   <h3 id="navName"></h3><div class="nsub" id="navSub"></div>
   <div class="nstats">
     <div class="nstat"><small>Straight line</small><b id="navStraight">—</b></div>
@@ -643,7 +647,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 65 (smart search)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 70 (Atlanta traffic fixed)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -1569,7 +1573,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v65 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v70 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -1722,7 +1726,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   // ---------- Keep the right-side buttons clear of bottom panels ----------
   function liftFabs(){
     let h=0;
-    document.querySelectorAll('.dlpanel.show,.navcard.show').forEach(el=>{h=Math.max(h,el.getBoundingClientRect().height)});
+    document.querySelectorAll('.dlpanel.show,.navcard.show').forEach(el=>{const r=el.getBoundingClientRect();h=Math.max(h,Math.min(r.height,innerHeight-r.top))});
     const fc=document.querySelector('.fab-col');
     fc.style.bottom=h?`${Math.round(h+12)}px`:'';
     // if there isn't room above a tall panel, tuck them away
@@ -2506,9 +2510,50 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     vet:{label:'Vets & pet stores',icon:'🐾',f:['nwr["amenity"="veterinary"]','nwr["shop"="pet"]'],brands:["PetSmart","Petco"]},
     post:{label:'Post offices & shipping',icon:'📮',f:['nwr["amenity"="post_office"]','nwr["shop"="copyshop"]'],brands:["UPS Store","The UPS Store","FedEx Office"]},
     police:{label:'Police & fire',icon:'🚓',f:['nwr["amenity"~"^(police|fire_station)$"]'],brands:[]},
+    pets:{label:'Pet stores',icon:'🐦',f:['nwr["shop"~"^(pet|aquarium)$"]'],brands:["PetSmart","Petco","Pet Supermarket","Pet Supplies Plus"]},
+    shelter:{label:'Animal shelters & rescues',icon:'🐶',f:['nwr["amenity"="animal_shelter"]','nwr["animal_shelter"]'],brands:[]},
+    clothing:{label:'Clothing stores',icon:'👕',f:['nwr["shop"~"^(clothes|boutique|second_hand|charity)$"]'],brands:["Walmart","Target","Old Navy","Ross","TJ Maxx","Goodwill"]},
+    shoes:{label:'Shoe & boot stores',icon:'🥾',f:['nwr["shop"="shoes"]'],brands:["Boot Barn","Academy Sports + Outdoors","Shoe Carnival","Famous Footwear"]},
+    furniture:{label:'Furniture & mattresses',icon:'🛋',f:['nwr["shop"~"^(furniture|bed|interior_decoration)$"]'],brands:["Rooms To Go","Ashley","Mattress Firm"]},
+    appliances:{label:'Appliance stores',icon:'🧊',f:['nwr["shop"="appliance"]'],brands:["Home Depot","Lowe's","Best Buy"]},
+    liquor:{label:'Liquor & beer stores',icon:'🍺',f:['nwr["shop"~"^(alcohol|beverages|wine)$"]'],brands:[]},
+    florist:{label:'Florists',icon:'💐',f:['nwr["shop"="florist"]'],brands:[]},
+    bakery:{label:'Bakeries',icon:'🎂',f:['nwr["shop"~"^(bakery|pastry|confectionery)$"]'],brands:[]},
+    books:{label:'Book stores',icon:'📚',f:['nwr["shop"="books"]','nwr["amenity"="library"]'],brands:["Barnes & Noble","Books-A-Million"]},
+    toys:{label:'Toy & game stores',icon:'🧸',f:['nwr["shop"~"^(toys|games|video_games)$"]'],brands:["GameStop","Target","Walmart"]},
+    bikes:{label:'Bike shops',icon:'🚲',f:['nwr["shop"="bicycle"]'],brands:[]},
+    marine:{label:'Boat & marine stores',icon:'⚓',f:['nwr["shop"~"^(boat|marine|outboard_motors)$"]'],brands:["West Marine"]},
+    carwash:{label:'Car washes',icon:'🚿',f:['nwr["amenity"="car_wash"]'],brands:[]},
+    crafts:{label:'Craft & fabric stores',icon:'🧵',f:['nwr["shop"~"^(craft|fabric|art|sewing)$"]'],brands:["Hobby Lobby","Michaels","Joann"]},
+    jewelry:{label:'Jewelry & pawn shops',icon:'💍',f:['nwr["shop"~"^(jewelry|pawnbroker)$"]'],brands:[]},
+    optician:{label:'Eye doctors & glasses',icon:'👓',f:['nwr["shop"="optician"]','nwr["healthcare"="optometrist"]'],brands:[]},
+    fireworks:{label:'Fireworks stores',icon:'🎆',f:['nwr["shop"="fireworks"]'],brands:[]},
+    tractor:{label:'Tractor & equipment dealers',icon:'🚜',f:['nwr["shop"~"^(tractor|agricultural_machinery|machinery)$"]'],brands:["John Deere","Kubota","Tractor Supply"]},
   };
   // words → which kinds of places to look in (first = best match)
   const WORDS=[
+    [/\b(birds?|parrots?|parakeets?|budgies?|cockatiels?|finch(es)?|canar(y|ies)|bird ?seed|bird ?cage)\b/,['pets','farm','shelter']],
+    [/\b(chicks|baby chickens?|ducks?|ducklings?|goats?|pigs?|rabbits?|bunn(y|ies))\b/,['farm','pets']],
+    [/\b(adopt(ion)?|rescue|humane society|animal shelter)\b/,['shelter','pets']],
+    [/\b(pets?|pet ?store|fish ?tank|aquariums?|goldfish|hamsters?|guinea ?pigs?|reptiles?|snakes?|lizards?|turtles?|puppy|puppies|kittens?|dogs?|cats?|pet ?supplies)\b/,['pets','shelter','vet']],
+    [/\b(clothes|clothing|shirts?|jeans|pants|jackets?|coats?|dress(es)?|thrift|goodwill)\b/,['clothing','big']],
+    [/\b(shoes|boots|sneakers|work boots)\b/,['shoes','clothing','outdoor']],
+    [/\b(furniture|couch|sofa|beds?|mattress(es)?|tables?|recliner)\b/,['furniture','big']],
+    [/\b(appliances?|fridge|refrigerator|freezer|washer|dryer|stove|microwave|air ?condition(er|ing)|ac unit)\b/,['appliances','hardware','big']],
+    [/\b(liquor|wine|whiskey|vodka|beer store|package store)\b/,['liquor']],
+    [/\b(flowers?|florist|bouquet)\b/,['florist','grocery']],
+    [/\b(cakes?|bakery|donuts?|doughnuts?|pastr(y|ies)|cookies?)\b/,['bakery','grocery']],
+    [/\b(books?|library)\b/,['books']],
+    [/\b(toys?|games?|video games?|legos?)\b/,['toys','big']],
+    [/\b(bikes?|bicycles?)\b/,['bikes','outdoor','big']],
+    [/\b(boat ?parts|marine|outboard|trolling motor|life ?jackets?|kayaks?|canoes?|paddles?|paddle ?boards?)\b/,['outdoor','marine','big']],
+    [/\b(car ?wash)\b/,['carwash']],
+    [/\b(crafts?|fabric|yarn|sewing|art supplies)\b/,['crafts','big']],
+    [/\b(jewelry|rings?|pawn( shop)?|gold)\b/,['jewelry']],
+    [/\b(glasses|eye ?doctor|contacts|optometrist)\b/,['optician']],
+    [/\b(fireworks?)\b/,['fireworks']],
+    [/\b(tractors?|tractor parts|kubota|john deere|bush ?hog|equipment dealer)\b/,['tractor','farm']],
+    [/\b(firewood|kindling)\b/,['grocery','farm','hardware']],
     [/\b(generators?|power ?washers?|pressure ?washers?|air ?compressors?|log ?splitters?)\b/,['hardware','rental','farm','big']],
     [/\b(chainsaws?|weed ?eaters?|trimmers?|mowers?|lawn ?mowers?)\b/,['hardware','farm','big']],
     [/\b(tools?|hardware|drills?|saws?|wrench(es)?|lumber|nails|screws|ladders?|paint|plumbing|pipes?|fittings?|fenc(e|ing)|wire|shovels?|tarps?|rope|chains?|bolts?|duct tape|extension cords?|batter(y|ies) charger)\b/,['hardware','big','farm']],
@@ -2538,6 +2583,72 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     [/\b(police|sheriff|fire station)\b/,['police']],
     [/\b(walmart|dollar general|target|department store)\b/,['big']],
   ];
+  function cleanQuery(q){return String(q).toLowerCase().replace(/\b(where|can|could|do|does|to|i|me|my|we|get|buy|find|purchase|need|want|looking|for|a|an|some|the|near|nearby|close|closest|around|here|by|store|shop|place|places|sell|sells|selling|that|which|is|are|there|any|good|best)\b/g,' ').replace(/[^a-z0-9' -]/g,' ').replace(/\s+/g,' ').trim()}
+  // ---- Smart search with Claude (optional) ----
+  // With your own Claude API key, any request in plain words ("somewhere to get my boat motor fixed",
+  // "a place that sells live bait at 5am", "birdseed") is turned into the right kinds of places,
+  // store brands and search words, then looked up on the map near you. The key stays on this phone.
+  let aiKey='';try{aiKey=localStorage.getItem('onpoint.aikey')||''}catch(e){}
+  const AI_SYSTEM=`You turn a person's map search into an OpenStreetMap lookup near them (USA). Reply with ONLY a JSON object, no prose:
+{"kind":"places"|"named"|"address","say":"<6-10 words describing what you'll look for>","filters":["nwr[\\"key\\"=\\"value\\"]", ...],"brands":["Exact Store Brand", ...],"words":"<1-3 words to also match in place names>","radius_mi":<5-60>}
+Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value"] or nwr["key"~"^(a|b)$"], at most 8, covering every kind of place likely to have, sell, rent, fix or offer what they want (e.g. birds → shop=pet, shop=farm, amenity=animal_shelter; boat motor repair → shop=boat, craft=boatbuilder, shop=outboard_motors). "brands": up to 10 US chains that usually carry it. If they name a specific business or town use kind "named" and put it in "words". If it's a street address use kind "address". Prefer a small radius for everyday things, larger for rare things.`;
+  const FILTER_OK=/^nwr(\["[a-z_:]{1,40}"((=|!=|~)"[^"\\]{1,120}"(,i)?)?\]){1,3}$/i;
+  async function aiPlan(q){
+    const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),15000);
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:ctl.signal,
+      headers:{'content-type':'application/json','x-api-key':aiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:400,system:AI_SYSTEM,messages:[{role:'user',content:q}]})});
+    clearTimeout(tm);
+    if(r.status===401||r.status===403)throw new Error('key');
+    const d=await r.json();const txt=((d.content||[]).find(c=>c.type==='text')||{}).text||'';
+    const plan=JSON.parse(txt.replace(/^[^{]*/,'').replace(/[^}]*$/,''));
+    plan.filters=(plan.filters||[]).filter(f=>FILTER_OK.test(String(f).trim())).slice(0,8);
+    plan.brands=(plan.brands||[]).map(String).filter(b=>b.length<40).slice(0,10);
+    plan.radius_mi=Math.max(3,Math.min(60,+plan.radius_mi||20));
+    return plan;
+  }
+  async function aiSearch(plan){
+    const c=me||map.getCenter(),out=[],seen=new Set();
+    const one=async rm=>{
+      const bb=bboxOf(c.lat,c.lng,rm*1609.34),esc2=b=>b.replace(/[.*+?^${}()|[\]\\"]/g,'\\\\$&');
+      const parts=plan.filters.map(f=>f+';');
+      if(plan.brands.length){const rx=plan.brands.map(esc2).join('|');parts.push(`nwr["brand"~"^(${rx})",i];`,`nwr["name"~"^(${rx})",i];`)}
+      if(plan.words&&plan.words.length>2)parts.push(`nwr["name"~"${plan.words.replace(/[^a-zA-Z0-9' ]/g,'')}",i];`);
+      if(!parts.length)return;
+      const d=await overpass(`[out:json][timeout:25][bbox:${bb}];(${parts.join('')});out center tags 200;`,30000);
+      for(const el of d.elements||[]){const t=el.tags||{},lat=el.lat??(el.center&&el.center.lat),lng=el.lon??(el.center&&el.center.lon);if(lat==null)continue;
+        const name=t.name||t.brand;if(!name)continue;const key=name+'|'+lat.toFixed(3);if(seen.has(key))continue;seen.add(key);
+        const kind=(t.shop||t.amenity||t.craft||t.leisure||t.tourism||t.office||t.healthcare||'').replace(/_/g,' ');
+        out.push({name,icon:'🤖',sub:kind?kind[0].toUpperCase()+kind.slice(1):'Place',lat,lng,phone:t.phone||t['contact:phone']||'',hours:t.opening_hours||'',
+          addr:[t['addr:housenumber']&&t['addr:street']?t['addr:housenumber']+' '+t['addr:street']:t['addr:street'],t['addr:city']].filter(Boolean).join(', '),web:t.website||'',d:haversine(c,{lat,lng})});}
+    };
+    await one(plan.radius_mi);
+    if(out.length<4&&plan.radius_mi<60)await one(Math.min(60,plan.radius_mi*2.5));
+    return out.sort((a,b)=>a.d-b.d);
+  }
+  function showAiKey(){
+    openSheet(`<h2 id="sheetTitle">🤖 Smart search</h2>
+      <p class="fine" style="font-size:15px;margin-top:4px">Lets search understand <b>anything</b> you type in plain words — it uses Claude (an AI) to work out what kinds of places would have it, then finds them near you on the map.</p>
+      <p class="fine">You need your own <b>Claude API key</b> from Anthropic (pay-as-you-go). Each search costs roughly <b>a fifth of a cent</b>. The key stays on this phone and only goes to Anthropic.</p>
+      <label class="f" for="aiK">Claude API key</label><input type="text" id="aiK" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-…" value="${esc(aiKey)}">
+      <div class="row"><button class="b-ghost" id="aiDocs">How to get a key</button><button class="b-ghost" id="aiClr">Remove</button><button class="b-flag" id="aiSave">Save</button></div>`);
+    $('aiDocs').onclick=()=>window.open('https://docs.claude.com/en/api/overview','_blank');
+    $('aiClr').onclick=()=>{aiKey='';try{localStorage.removeItem('onpoint.aikey')}catch(e){}closeSheet();toast('Smart search off')};
+    $('aiSave').onclick=()=>{const k=$('aiK').value.trim();if(!k){toast('Paste a key first');return}aiKey=k;try{localStorage.setItem('onpoint.aikey',k)}catch(e){}closeSheet();toast('Smart search on — try searching anything');showSearch()};
+  }
+
+  async function nameSearch(word){
+    if(!word||word.length<3)return [];
+    const c=me||map.getCenter(),bb=bboxOf(c.lat,c.lng,40000),w=word.replace(/[^a-z0-9' ]/g,'').replace(/s$/,'');
+    const K='^(name|brand|shop|amenity|craft|cuisine|sport|leisure|tourism|office|healthcare|man_made|product|products|sells|description|service|trade)$';
+    const q=`[out:json][timeout:20][bbox:${bb}];(nwr[~"${K}"~"${w}",i]["name"];nwr[~"${K}"~"${w}",i]["shop"];nwr[~"${K}"~"${w}",i]["amenity"];);out center tags 80;`;
+    try{const d=await overpass(q,22000);
+      return (d.elements||[]).map(el=>{const t=el.tags||{},lat=el.lat??(el.center&&el.center.lat),lng=el.lon??(el.center&&el.center.lon);if(lat==null)return null;
+        const kind=(t.shop||t.amenity||t.craft||t.tourism||'').replace(/_/g,' ');
+        return {name:t.name,icon:'📍',sub:kind?kind[0].toUpperCase()+kind.slice(1):'Place',lat,lng,phone:t.phone||t['contact:phone']||'',hours:t.opening_hours||'',
+          addr:[t['addr:housenumber']&&t['addr:street']?t['addr:housenumber']+' '+t['addr:street']:t['addr:street'],t['addr:city']].filter(Boolean).join(', '),web:t.website||'',d:haversine(c,{lat,lng})}})
+        .filter(Boolean).sort((a,b)=>a.d-b.d).slice(0,25)}catch(e){return []}
+  }
   function detectCats(q){
     q=q.toLowerCase().replace(/\bnear (me|here|by)\b|\bnearby\b|\bclose\b|\baround here\b|\bi need( a| an| some)?\b|\bwhere (can i|to) (get|buy|find)( a| an| some)?\b|\bfind( me)?( a| an)?\b/g,' ').trim();
     if(/\b(trails?|hik(e|es|ing)|walking paths?)\b/.test(q))return {trail:true};
@@ -2580,7 +2691,9 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     openSheet(`<h2 id="sheetTitle">Search</h2>
       <input type="text" id="sQ" placeholder="Search a place, or what you need (tools, camping, generator…)" autocomplete="off" enterkeyhint="search" style="margin-top:6px">
       ${srch?`<div class="row" style="margin-top:8px"><button class="b-ghost" id="sClear">✕ Clear “${esc(srch.name.slice(0,24))}”</button></div>`:''}
-      <ul class="sres" id="sRes"></ul><p class="fine" id="sNote"></p>`);
+      <ul class="sres" id="sRes"></ul><p class="fine" id="sNote"></p>
+      <button class="opt" id="sAi" style="margin-top:6px"><span><span class="ot">🤖 Smart search: ${aiKey?'on':'off'}</span><span class="od">${aiKey?'Understands anything you type (uses your Claude API key)':'Turn on to search for anything in plain words'}</span></span></button>`);
+    $('sAi').onclick=showAiKey;
     const q=$('sQ');setTimeout(()=>q.focus(),250);
     if($('sClear'))$('sClear').onclick=()=>{srchClear();closeSheet()};
     const run=async()=>{
@@ -2590,6 +2703,26 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       if(co)return;
       if(cat&&cat.trail){$('sNote').innerHTML='<button class="opt" id="sTrails"><span><span class="ot">🥾 Find trails near you</span><span class="od">Opens the trail planner</span></span></button>';
         $('sTrails').onclick=()=>{closeSheet();showTrails()};}
+      if(aiKey&&navigator.onLine){
+        $('sNote').textContent='🤖 Working out what you need…';
+        try{
+          const plan=await aiPlan(v);if(seq!==srchSeq)return;
+          if(plan.kind==='address'||plan.kind==='named'){
+            const on=await onlineSearch(plan.words||v),named=plan.words?await nameSearch(plan.words.toLowerCase()):[];if(seq!==srchSeq)return;
+            srchList=[...loc,...named,...(on||[])];$('sRes').innerHTML=srchRows(srchList);
+            $('sNote').textContent=srchList.length?`🤖 ${plan.say||''}`:`🤖 Couldn’t find “${plan.words||v}”.`;return;
+          }
+          $('sNote').textContent=`🤖 Looking for: ${plan.say||'places that have it'}…`;
+          const found=await aiSearch(plan);if(seq!==srchSeq)return;
+          if(found.length){
+            srchList=[...found.slice(0,40),...loc];
+            $('sRes').innerHTML=`<li style="padding:6px 2px"><button class="b-flag" id="sAll" style="width:100%;height:44px;border-radius:12px;font-weight:600">📍 Show all ${found.length} on the map & camera</button></li>`+srchRows(srchList);
+            $('sAll').onclick=()=>{closeSheet();srchShowAll(found,'places')};
+            $('sNote').textContent=`🤖 ${plan.say||''} — nearest first. Places that usually have it; call ahead to check.`;return;
+          }
+          $('sNote').textContent='🤖 Nothing found nearby — trying a wider search…';
+        }catch(e){if(e&&e.message==='key'){$('sNote').textContent='🤖 Your Claude key was refused — check it under Smart search.'}}
+      }
       if(cat&&cat.cats&&navigator.onLine){
         $('sNote').textContent=`Looking for ${cat.cats.map(k=>CATS[k].label.toLowerCase()).slice(0,3).join(', ')} near you…`;
         let found=[];
@@ -2606,11 +2739,15 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
       }
       if(!navigator.onLine){$('sNote').textContent=loc.length?'No signal — showing your pins and saved places.':'No signal — only your pins and saved places can be searched.';return}
       $('sNote').textContent='Searching…';
-      const on=await onlineSearch(v);if(seq!==srchSeq)return;
-      srchList=[...loc,...(on||[])];
+      const core=cleanQuery(v),useCore=core&&core!==v.toLowerCase().trim();
+      const [on,named]=await Promise.all([onlineSearch(useCore?core:v),useCore||!cat?nameSearch(core||v.toLowerCase()):Promise.resolve([])]);
+      if(seq!==srchSeq)return;
+      const seenN=new Set(named.map(x=>x.name+'|'+x.lat.toFixed(3)));
+      srchList=[...loc,...named,...(on||[]).filter(x=>!seenN.has(x.name+'|'+x.lat.toFixed(3)))];
+      if(named.length>1){$('sRes').innerHTML='';}
       if(me)srchList.sort((a,b)=>(a.sub==='Your pin'?-1:0)-(b.sub==='Your pin'?-1:0)||0);
       $('sRes').innerHTML=srchRows(srchList);
-      $('sNote').textContent=on===null?'Couldn’t reach the search service.':(srchList.length?'':'Nothing found — try adding the town or county.');
+      $('sNote').textContent=on===null&&!srchList.length?'Couldn’t reach the search service.':(srchList.length?'':`Nothing found for “${core||v}”. Try the kind of store, like “pet store”, “hardware” or “feed store”.`);
     };
     q.oninput=()=>{clearTimeout(srchT);srchT=setTimeout(run,400)};
     q.onkeydown=e=>{if(e.key==='Enter'){clearTimeout(srchT);run();q.blur()}};
@@ -2698,7 +2835,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
         for(let i=0;i<o.pts.length;i+=Math.max(1,Math.floor(o.pts.length/60))){const q=o.pts[i];let m=1e9;
           for(let j=0;j<navRoutePts.length;j+=Math.max(1,Math.floor(navRoutePts.length/120))){const r2=navRoutePts[j];m=Math.min(m,Math.abs(q[0]-r2[0])+Math.abs(q[1]-r2[1]))}
           if(m>best){best=m;lab=q}}
-        const pp=P(lab),t=`${'ABCD'[k]} · ${fmtDur(o.est.total)}`,w=t.length*7+14;
+        const pp=P(lab),t=`${'ABCDEFGH'[k]} · ${fmtDur(o.est.total)}`,w=t.length*7+14;
         h+=`<g transform="translate(${pp.x.toFixed(1)},${pp.y.toFixed(1)})"><rect x="${(-w/2).toFixed(1)}" y="-11" width="${w.toFixed(1)}" height="22" rx="7" fill="#fff" stroke="#8C99A6" stroke-width="1.5"/><text y="4.5" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12.5" fill="#34444F">${t}</text></g>`;
       });
     }
@@ -2724,6 +2861,50 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   map.on('move zoom rotate viewreset resize moveend zoomend rotateend',navRedraw);
   map.on('zoomanim',()=>{if(nav||trkHas()||skHas()||msHas())$('navSvg').style.opacity=0});
   map.on('zoomend',()=>{$('navSvg').style.opacity=1});
+  // ---------- Slide the route card down to see the map ----------
+  // Three positions: open (everything), half, and tucked (just the name and times). Drag the handle
+  // or the title, or tap the handle to switch. When it moves, the map re-fits so the whole route
+  // shows in the space above the card.
+  let ncPos='open',ncY=0;
+  function ncPeek(){const c=$('navcard'),st=c.querySelector('.nstats');if(!st)return 150;return Math.min(c.offsetHeight,st.offsetTop+st.offsetHeight+14)}
+  function ncTarget(pos){const H=$('navcard').offsetHeight;return pos==='open'?0:pos==='half'?Math.max(0,Math.round(H*0.5)):Math.max(0,H-ncPeek())}
+  function ncSnap(pos,fit=true){
+    ncPos=pos;const c=$('navcard');c.classList.remove('dragging');ncY=ncTarget(pos);c.style.transform=ncY?`translateY(${ncY}px)`:'';
+    $('ncHint').textContent=pos==='tucked'?'▲ Slide up for details':'Slide down to see the map';
+    if(pos!=='open')c.scrollTop=0;
+    setTimeout(()=>{liftFabs();if(fit)ncFitRoute()},300);
+  }
+  function ncFitRoute(){
+    if(!nav)return;const pts=[];
+    if(navRoutePts)for(let i=0;i<navRoutePts.length;i+=Math.max(1,Math.floor(navRoutePts.length/200)))pts.push(navRoutePts[i]);
+    if(navAlts&&!tbtOn)navAlts.forEach(o=>{for(let i=0;i<o.pts.length;i+=Math.max(1,Math.floor(o.pts.length/80)))pts.push(o.pts[i])});
+    pts.push([nav.lat,nav.lng]);if(me)pts.push([me.lat,me.lng]);
+    const r=$('navcard').getBoundingClientRect(),bottom=Math.max(20,Math.round(innerHeight-r.top)+16);
+    follow=false;$('locBtn').classList.remove('on');
+    try{map.fitBounds(L.latLngBounds(pts),{paddingTopLeft:[30,110],paddingBottomRight:[30,bottom],maxZoom:17})}catch(e){}
+  }
+  (()=>{
+    const g=$('ncGrab'),c=$('navcard');let y0=0,base=0,moved=false,t0=0;
+    const start=y=>{y0=y;base=ncY;moved=false;t0=Date.now();c.classList.add('dragging')};
+    const move=y=>{const dy=y-y0;if(Math.abs(dy)>4)moved=true;ncY=Math.max(0,Math.min(ncTarget('tucked'),base+dy));c.style.transform=`translateY(${ncY}px)`};
+    const end=y=>{c.classList.remove('dragging');
+      if(!moved){ncSnap(ncPos==='tucked'?'open':'tucked');return}
+      const v=(y-y0)/Math.max(1,Date.now()-t0);              // flick speed
+      if(v>0.6)return ncSnap(ncPos==='open'&&ncY<ncTarget('half')?'half':'tucked');
+      if(v<-0.6)return ncSnap('open');
+      const opts=['open','half','tucked'].map(p=>[p,Math.abs(ncTarget(p)-ncY)]).sort((a,b)=>a[1]-b[1]);ncSnap(opts[0][0])};
+    [g,$('navName')].forEach(el=>{
+      el.addEventListener('touchstart',e=>{start(e.touches[0].clientY)},{passive:true});
+      el.addEventListener('touchmove',e=>{e.preventDefault();move(e.touches[0].clientY)},{passive:false});
+      el.addEventListener('touchend',e=>{end(e.changedTouches[0].clientY)});
+      el.addEventListener('mousedown',e=>{start(e.clientY);const mm=ev=>move(ev.clientY),mu=ev=>{removeEventListener('mousemove',mm);removeEventListener('mouseup',mu);end(ev.clientY)};addEventListener('mousemove',mm);addEventListener('mouseup',mu)});
+    });
+    // swiping down on the card's content when it's scrolled to the top also slides it down
+    let sy=null;
+    c.addEventListener('touchstart',e=>{if(e.target.closest('#ncGrab,#navName'))return;sy=c.scrollTop<=0?e.touches[0].clientY:null},{passive:true});
+    c.addEventListener('touchmove',e=>{if(sy==null)return;const dy=e.touches[0].clientY-sy;if(dy>40&&ncPos!=='tucked'){sy=null;ncSnap(ncPos==='open'?'half':'tucked')}},{passive:true});
+  })();
+
   // ---------- Route options with traffic estimates ----------
   // Free routing has no live traffic, so this ESTIMATES it from the time of day, the day of the
   // week, and which city areas the route goes through (and when you'd reach them) — e.g. Atlanta at
@@ -2754,29 +2935,44 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     return Math.min(1,f);
   }
   const schoolTime=t=>{const d=t.getDay(),h=t.getHours()+t.getMinutes()/60;return d>=1&&d<=5&&((h>=7&&h<=8.3)||(h>=14.5&&h<=15.9))};
+  // Big, congested metros (Atlanta, Houston, LA…) are rarely "light" — even midday, weekends and
+  // late evening they carry a base level of slowdowns, crashes and construction. This floor keeps
+  // them from being rated Light just because it isn't rush hour.
+  function metroFloor(m,t){
+    if(m[4]<0.6)return 0;
+    const d=t.getDay(),h=t.getHours()+t.getMinutes()/60,wk=d>=1&&d<=5;
+    const f=(h>=6.5&&h<20)?(wk?0.45:0.35):(h>=20&&h<23)?0.2:(h>=5&&h<6.5)?0.15:0.05;
+    return f*Math.min(1,m[4]+0.1);
+  }
+  const LVLS=[['Light','#2E9E5B'],['Moderate','#D9A21C'],['Heavy','#E8711A'],['Very heavy','#C62828']];
+  const lvlOf=x=>x<0.22?0:x<0.45?1:x<0.7?2:3;            // x = how jammed a stretch is (0–1)
   function trafficEstimate(r,start){
     const pts=r.geometry.coordinates,base=r.duration,dist=r.distance;
-    let el=0,extra=0,prev=null,acc=0,step=Math.max(1,Math.floor(pts.length/400));
-    const seen=new Map();let school=false,peak=0;
+    let el=0,extra=0,prev=null,step=Math.max(1,Math.floor(pts.length/400));
+    const seen=new Map();let school=false;
     for(let i=0;i<pts.length;i+=step){
       const q={lat:pts[i][1],lng:pts[i][0]};
-      if(prev){const dd=haversine(prev,q);acc+=dd;const dt=base*(dd/Math.max(dist,1));
+      if(prev){const dd=haversine(prev,q),dt=base*(dd/Math.max(dist,1));
         const when=new Date(start.getTime()+(el+extra)*1000),b=busy(when);
-        let w=0.03;                                                 // open highway: barely affected
+        let jam=0.03*b,metro=null;                                  // open highway: barely affected
         for(const m of METROS){const km=haversine(q,{lat:m[1],lng:m[2]})/1000;if(km<m[3]*1.4){
-          const ww=m[4]*(km<m[3]?1:0.45);if(ww>w)w=ww;
-          if(km<m[3]&&!seen.has(m[0]))seen.set(m[0],{when,b})}}
-        extra+=dt*w*b*1.15;el+=dt;peak=Math.max(peak,w*b);
-        if(schoolTime(when)&&w>=0.1)school=true;
+          const inCore=km<m[3],w=m[4]*(inCore?1:0.45),bb=Math.max(b,inCore?metroFloor(m,when):metroFloor(m,when)*0.5),j=Math.min(1,w*bb);
+          if(j>jam){jam=j;metro=inCore?m:null}
+          if(inCore){const v=seen.get(m[0]);if(!v)seen.set(m[0],{when,b:bb,j,km:dd/1000});else{v.j=Math.max(v.j,j);v.km+=dd/1000}}}}
+        // a jammed core moves at roughly a third to half its normal speed at peak
+        extra+=dt*jam*(0.8+0.8*jam);el+=dt;
+        if(schoolTime(when)&&jam>=0.1)school=true;
       }
       prev=q;
     }
     if(school)extra+=base*0.03;
     const ratio=extra/Math.max(base,1);
-    const lvl=ratio<0.08?['Light','#2E9E5B']:ratio<0.22?['Moderate','#D9A21C']:ratio<0.45?['Heavy','#E8711A']:['Very heavy','#C62828'];
-    const why=[...seen].map(([n,v])=>`${n} around ${v.when.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}${v.b>0.75?' (rush hour)':v.b>0.45?' (busy)':''}`);
+    let li=ratio<0.12?0:ratio<0.3?1:ratio<0.6?2:3;
+    // a route is at least as bad as the worst big city it goes through (if it spends real time there)
+    for(const [,v] of seen)if(v.km>=4)li=Math.max(li,lvlOf(v.j));
+    const why=[...seen].filter(([,v])=>v.km>=2).map(([n,v])=>`${n} around ${v.when.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}: ${LVLS[lvlOf(v.j)][0].toLowerCase()}${v.b>0.75?' (rush hour)':''}`);
     if(school)why.push('school drop-off/let-out near towns');
-    return {base,extra,total:base+extra,level:lvl[0],color:lvl[1],why,ratio};
+    return {base,extra,total:base+extra,level:LVLS[li][0],color:LVLS[li][1],why,ratio};
   }
   function viaRoads(r){
     const by=new Map();((r.legs&&r.legs[0]&&r.legs[0].steps)||[]).forEach(st=>{const n=st.ref?String(st.ref).split(';')[0]:st.name;if(n)by.set(n,(by.get(n)||0)+st.distance)});
@@ -2793,6 +2989,56 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
     tripOnRoute(r.distance);
     navRedraw();
   }
+  // ---- More route choices ----
+  // The router only offers a couple of alternatives, so this asks for extra ones by steering
+  // through points off to either side of the trip, and around busy cities on the way.
+  // Keeps any that are really different — even up to about an hour slower — so you can choose.
+  const ALT_MAX_EXTRA=75*60;
+  function overlapFrac(a,b){
+    const cell=0.003,set=new Set();b.forEach(q=>set.add(Math.round(q[0]/cell)+','+Math.round(q[1]/cell)));
+    let hit=0,n=0;for(let i=0;i<a.length;i+=Math.max(1,Math.floor(a.length/60))){n++;const q=a[i],x=Math.round(q[0]/cell),y=Math.round(q[1]/cell);
+      let f=false;for(let dx=-1;dx<=1&&!f;dx++)for(let dy=-1;dy<=1&&!f;dy++)if(set.has((x+dx)+','+(y+dy)))f=true;if(f)hit++}
+    return n?hit/n:1;
+  }
+  async function moreRoutes(seq){
+    if(!navAlts||!nav||!me||navMode!=='car')return;
+    const A={lat:me.lat,lng:me.lng},B={lat:nav.lat,lng:nav.lng},D=haversine(A,B);if(D<5000)return;
+    const k=Math.cos(A.lat*Math.PI/180),dx=(B.lng-A.lng)*k,dy=B.lat-A.lat,len=Math.hypot(dx,dy)||1,px=-dy/len,py=dx/len;
+    const via=(t,off)=>{const lat=A.lat+(B.lat-A.lat)*t+py*off*len,lng=A.lng+(B.lng-A.lng)*t+px*off*len/k;return [lat,lng]};
+    const tries=[];
+    // around busy cities the fastest route passes through
+    const base=navAlts[0].pts;
+    for(const m of METROS){if(m[4]<0.45)continue;
+      const near=base.some((q,i)=>i%10===0&&haversine({lat:q[0],lng:q[1]},{lat:m[1],lng:m[2]})<m[3]*1000);if(!near)continue;
+      const r=m[3]*1.7/111;[1,-1].forEach(sg=>tries.push({v:[m[1]+py*sg*r,m[2]+px*sg*r/k],why:`around ${m[0]}`}));}
+    // wider and narrower swings to either side of the trip
+    [[0.5,0.12],[0.5,-0.12],[0.5,0.25],[0.5,-0.25],[0.33,0.18],[0.33,-0.18],[0.67,0.18],[0.67,-0.18]].forEach(([t,o])=>tries.push({v:via(t,o),why:''}));
+    const fastest=()=>Math.min(...navAlts.map(o=>o.est.total));
+    let added=0;
+    for(const tr of tries.slice(0,12)){
+      if(seq!==navReq||!nav||tbtOn||navAlts.length>=8)break;
+      try{
+        const url=`${ROUTERS.car}${A.lng.toFixed(6)},${A.lat.toFixed(6)};${tr.v[1].toFixed(5)},${tr.v[0].toFixed(5)};${B.lng.toFixed(6)},${B.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true&continue_straight=true`;
+        const d=await (await fetch(url)).json();if(seq!==navReq||!nav)return;
+        const r=d.routes&&d.routes[0];if(!r)continue;
+        // join the two legs' steps into one list (drop the "arrive at waypoint / depart" pair)
+        const L0=(r.legs[0]&&r.legs[0].steps)||[],L1=(r.legs[1]&&r.legs[1].steps)||[];
+        r.legs=[{steps:[...L0.filter(st=>st.maneuver.type!=='arrive'),...L1.filter(st=>st.maneuver.type!=='depart')]}];
+        const pts=r.geometry.coordinates.map(c=>[c[1],c[0]]);
+        if(r.distance>D*2.2)continue;                                   // silly detour
+        if(navAlts.some(o=>overlapFrac(pts,o.pts)>0.85))continue;        // basically the same road
+        // no doubling back over itself at the waypoint
+        const half=Math.floor(pts.length/2);if(overlapFrac(pts.slice(half),pts.slice(0,half))>0.3)continue;
+        const est=trafficEstimate(r,new Date());
+        if(est.total-fastest()>ALT_MAX_EXTRA)continue;
+        navAlts.push({r,pts,est,why:tr.why});added++;
+        navAlts.sort((a,b)=>a.est.total-b.est.total);optsCard();navRedraw();
+      }catch(e){}
+      await new Promise(res=>setTimeout(res,350));                      // be polite to the free router
+    }
+    if(seq===navReq){const m=added?`Found ${added} more route${added>1?'s':''} — up to about an hour slower are included.`:'No other sensible routes found.';$('navOpts').dataset.more=m;if($('navOptsMore'))$('navOptsMore').textContent=m}
+  }
+
   function optsCard(){
     const el=$('navOpts');if(!navAlts||navAlts.length<1){el.style.display='none';return}
     const fastest=Math.min(...navAlts.map(o=>o.est.total));
@@ -2804,13 +3050,13 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
         later=`<div class="leavelater">🕒 Leaving around <b>${at.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</b> should save about <b>${fmtDur(navSel.est.total-best.total)}</b> on the drive.</div>`}}
     el.innerHTML=`<div class="sec" style="margin-top:6px">Route options${navAlts.length>1?` (${navAlts.length})`:''}</div>`+
       navAlts.map((o,k)=>{const v=viaRoads(o.r),d=o.est.total-fastest;
-        return `<button class="ropt" data-k="${k}" aria-pressed="${o===navSel}"><div class="top1"><span class="letter">${'ABCD'[k]}</span><span class="big">${fmtDur(o.est.total)}</span>
+        return `<button class="ropt" data-k="${k}" aria-pressed="${o===navSel}"><div class="top1"><span class="letter">${'ABCDEFGH'[k]}</span><span class="big">${fmtDur(o.est.total)}</span>
           <span style="color:var(--muted);font-size:14px">${fmtDist(o.r.distance)}${d>60?` · +${fmtDur(d)}`:o.est.total===fastest&&navAlts.length>1?' · fastest':''}</span>
           <span class="lvl" style="background:${o.est.color}">${o.est.level}</span></div>
-          <div class="why">${v.length?'via '+esc(v.join(', '))+' · ':''}${o.est.extra>60?`about ${fmtDur(o.est.extra)} of traffic`:'little traffic expected'}${o.est.why.length?'<br>'+esc(o.est.why.join(' · ')):''}</div></button>`}).join('')+
-      later+`<p class="fine" style="margin:2px 0">Traffic is <b>estimated</b> from time of day, day of week and the cities each route passes through — not live.</p>`;
+          <div class="why">${o.why?'<b>'+esc(o.why)+'</b> · ':''}${v.length?'via '+esc(v.join(', '))+' · ':''}${o.est.extra>60?`about ${fmtDur(o.est.extra)} of traffic`:'little traffic expected'}${o.est.why.length?'<br>'+esc(o.est.why.join(' · ')):''}</div></button>`}).join('')+
+      later+`<p class="fine" id="navOptsMore" style="margin:2px 0">${el.dataset.more?el.dataset.more:'Looking for more routes…'}</p><p class="fine" style="margin:2px 0">Traffic is <b>estimated</b> from time of day, day of week and the cities each route passes through — not live.</p>`;
     el.style.display='';
-    el.onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;useRoute(navAlts[+b.dataset.k]);optsCard()};
+    el.onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;useRoute(navAlts[+b.dataset.k]);optsCard();if(ncPos!=='open')ncSnap(ncPos)};
   }
 
   // ---------- Turn-by-turn directions ----------
@@ -3161,7 +3407,7 @@ out tags center 300;`;
     $('navName').textContent=`${t.icon||'📍'} ${t.name}`;
     $('navSub').textContent=[t.sub,t.ele!=null?Math.round(t.ele*3.28084).toLocaleString()+' ft high':''].filter(Boolean).join(' · ');
     $('navMode').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===navMode));
-    $('navcard').classList.add('show');document.querySelector('.dock').style.display='none';
+    $('navcard').classList.add('show');document.querySelector('.dock').style.display='none';ncSnap('open',false);
     follow=false;$('locBtn').classList.remove('on');
     navUpdate();
     const fitPts=[[t.lat,t.lng]];if(me)fitPts.push([me.lat,me.lng]);
@@ -3203,7 +3449,8 @@ out tags center 300;`;
         navAlts=routes.map((r,i)=>({r,i,pts:r.geometry.coordinates.map(c=>[c[1],c[0]]),est:trafficEstimate(r,new Date())}));
         // best = fastest once estimated traffic is included
         const best=navAlts.reduce((a,b)=>b.est.total<a.est.total?b:a);
-        useRoute(best);optsCard();
+        $('navOpts').dataset.more='';useRoute(best);optsCard();
+        moreRoutes(seq);
       }else{navAlts=null;$('navOpts').style.display='none';useRoute({r:routes[0],pts:routes[0].geometry.coordinates.map(c=>[c[1],c[0]]),est:navMode==='car'?trafficEstimate(routes[0],new Date()):null})}
     }catch(e){if(seq===navReq)$('navRoute').textContent='Couldn’t route'}
   }
