@@ -647,7 +647,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 72 (realistic drive times)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 74 (Apple-style route picking)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -1338,9 +1338,9 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
   // ---- OpenStreetMap place data: several servers to try, plus saved copies for offline ----
   const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
   let arLastErr='',arLastOk='';
-  async function overpass(q,waitMs){
+  async function overpass(q,waitMs,tries){
     let last;
-    for(const url of OVERPASS){
+    for(const url of OVERPASS.slice(0,tries||OVERPASS.length)){
       const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),waitMs||45000);
       try{
         const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:ctl.signal});
@@ -1573,7 +1573,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v72 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v74 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -2465,13 +2465,15 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   async function onlineSearch(q){
     const c=me||map.getCenter(),lat=c.lat,lng=c.lng!==undefined?c.lng:c.lng;
     try{
-      const d=await (await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${lat.toFixed(4)}&lon=${lng.toFixed(4)}&limit=10&lang=en`)).json();
+      const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),8000);
+      const d=await (await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${lat.toFixed(4)}&lon=${lng.toFixed(4)}&limit=10&lang=en`,{signal:ctl.signal})).json();clearTimeout(tm);
       return (d.features||[]).map(f=>{const p=f.properties||{},[ic,kind]=srchKind(p);
         const line=[p.housenumber&&p.street?p.housenumber+' '+p.street:p.street,p.city||p.town||p.village,p.county,p.state].filter(Boolean);
         return {name:p.name||(p.housenumber?p.housenumber+' '+(p.street||''):p.street)||line[0]||q,sub:[kind,...line.filter(x=>x!==p.name)].slice(0,3).join(' · '),icon:ic,lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}});
     }catch(e){}
     try{
-      const d=await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&countrycodes=us&q=${encodeURIComponent(q)}`)).json();
+      const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),8000);
+      const d=await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&countrycodes=us&q=${encodeURIComponent(q)}`,{signal:ctl.signal})).json();clearTimeout(tm);
       return (d||[]).map(r=>({name:(r.name||r.display_name.split(',')[0]),sub:r.display_name.split(',').slice(1,4).join(',').trim(),icon:'📍',lat:+r.lat,lng:+r.lon}));
     }catch(e){return null}
   }
@@ -2639,10 +2641,10 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
 
   async function nameSearch(word){
     if(!word||word.length<3)return [];
-    const c=me||map.getCenter(),bb=bboxOf(c.lat,c.lng,40000),w=word.replace(/[^a-z0-9' ]/g,'').replace(/s$/,'');
+    const c=me||map.getCenter(),bb=bboxOf(c.lat,c.lng,25000),w=word.replace(/[^a-z0-9' ]/g,'').replace(/s$/,'');
     const K='^(name|brand|shop|amenity|craft|cuisine|sport|leisure|tourism|office|healthcare|man_made|product|products|sells|description|service|trade)$';
-    const q=`[out:json][timeout:20][bbox:${bb}];(nwr[~"${K}"~"${w}",i]["name"];nwr[~"${K}"~"${w}",i]["shop"];nwr[~"${K}"~"${w}",i]["amenity"];);out center tags 80;`;
-    try{const d=await overpass(q,22000);
+    const q=`[out:json][timeout:12][bbox:${bb}];(nwr[~"${K}"~"${w}",i]["name"];nwr[~"${K}"~"${w}",i]["shop"];nwr[~"${K}"~"${w}",i]["amenity"];);out center tags 80;`;
+    try{const d=await overpass(q,14000,2);
       return (d.elements||[]).map(el=>{const t=el.tags||{},lat=el.lat??(el.center&&el.center.lat),lng=el.lon??(el.center&&el.center.lon);if(lat==null)return null;
         const kind=(t.shop||t.amenity||t.craft||t.tourism||'').replace(/_/g,' ');
         return {name:t.name,icon:'📍',sub:kind?kind[0].toUpperCase()+kind.slice(1):'Place',lat,lng,phone:t.phone||t['contact:phone']||'',hours:t.opening_hours||'',
@@ -2661,7 +2663,7 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
     cats.forEach(k=>{const C=CATS[k];C.f.forEach(f=>parts.push(f+';'));
       if(C.brands.length)parts.push(`nwr["brand"~"^(${C.brands.map(b=>b.replace(/[.*+?^${}()|[\]\\"]/g,'\\\\$&')).join('|')})$",i];`,`nwr["name"~"^(${C.brands.map(b=>b.replace(/[.*+?^${}()|[\]\\"]/g,'\\\\$&')).join('|')})",i]["shop"];`)});
     const q=`[out:json][timeout:25][bbox:${bb}];(${parts.join('')});out center tags 250;`;
-    const d=await overpass(q,30000);
+    const d=await overpass(q,16000,2);
     const out=[],seen=new Set();
     for(const el of d.elements||[]){
       const t=el.tags||{},lat=el.lat??(el.center&&el.center.lat),lng=el.lon??(el.center&&el.center.lon);if(lat==null)continue;
@@ -2696,58 +2698,57 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
     $('sAi').onclick=showAiKey;
     const q=$('sQ');setTimeout(()=>q.focus(),250);
     if($('sClear'))$('sClear').onclick=()=>{srchClear();closeSheet()};
+    // Every kind of search runs at the same time; results show the moment each one answers,
+    // and a slow or busy server can't hold up the others.
     const run=async()=>{
       const v=q.value.trim(),seq=++srchSeq;if(v.length<2){$('sRes').innerHTML='';$('sNote').textContent='';return}
       const co=srchCoords(v),loc=localMatches(v),cat=co?null:detectCats(v);
-      srchList=[...(co?[co]:[]),...loc];$('sRes').innerHTML=srchRows(srchList);
-      if(co)return;
-      if(cat&&cat.trail){$('sNote').innerHTML='<button class="opt" id="sTrails"><span><span class="ot">🥾 Find trails near you</span><span class="od">Opens the trail planner</span></span></button>';
-        $('sTrails').onclick=()=>{closeSheet();showTrails()};}
-      if(aiKey&&navigator.onLine){
-        $('sNote').textContent='🤖 Working out what you need…';
-        try{
-          const plan=await aiPlan(v);if(seq!==srchSeq)return;
-          if(plan.kind==='address'||plan.kind==='named'){
-            const on=await onlineSearch(plan.words||v),named=plan.words?await nameSearch(plan.words.toLowerCase()):[];if(seq!==srchSeq)return;
-            srchList=[...loc,...named,...(on||[])];$('sRes').innerHTML=srchRows(srchList);
-            $('sNote').textContent=srchList.length?`🤖 ${plan.say||''}`:`🤖 Couldn’t find “${plan.words||v}”.`;return;
-          }
-          $('sNote').textContent=`🤖 Looking for: ${plan.say||'places that have it'}…`;
-          const found=await aiSearch(plan);if(seq!==srchSeq)return;
-          if(found.length){
-            srchList=[...found.slice(0,40),...loc];
-            $('sRes').innerHTML=`<li style="padding:6px 2px"><button class="b-flag" id="sAll" style="width:100%;height:44px;border-radius:12px;font-weight:600">📍 Show all ${found.length} on the map & camera</button></li>`+srchRows(srchList);
-            $('sAll').onclick=()=>{closeSheet();srchShowAll(found,'places')};
-            $('sNote').textContent=`🤖 ${plan.say||''} — nearest first. Places that usually have it; call ahead to check.`;return;
-          }
-          $('sNote').textContent='🤖 Nothing found nearby — trying a wider search…';
-        }catch(e){if(e&&e.message==='key'){$('sNote').textContent='🤖 Your Claude key was refused — check it under Smart search.'}}
-      }
-      if(cat&&cat.cats&&navigator.onLine){
-        $('sNote').textContent=`Looking for ${cat.cats.map(k=>CATS[k].label.toLowerCase()).slice(0,3).join(', ')} near you…`;
-        let found=[];
-        try{found=await catSearch(cat.cats,25000);if(found.length<4)found=await catSearch(cat.cats,60000)}catch(e){}
+      if(co){srchList=[co,...loc];$('sRes').innerHTML=srchRows(srchList);$('sNote').textContent='';return}
+      const R={ai:[],cat:[],named:[],web:[]},busyPart=new Set(),why={};let aiSay='',webFail=false,aiErr='';
+      const draw=()=>{
         if(seq!==srchSeq)return;
-        if(found.length){
-          srchList=[...found.slice(0,40),...loc];
-          $('sRes').innerHTML=`<li style="padding:6px 2px"><button class="b-flag" id="sAll" style="width:100%;height:44px;border-radius:12px;font-weight:600">📍 Show all ${found.length} on the map & camera</button></li>`+srchRows(srchList);
-          $('sAll').onclick=()=>{closeSheet();srchShowAll(found,cat.cats.length>1?'places':CATS[cat.cats[0]].label.toLowerCase())};
-          const itemy=WORDS.slice(0,4).some(([re])=>re.test(v.toLowerCase()))||/\b(tents?|ammo|batter|tires?|oil|propane|chargers?|feed|bait)\b/.test(v.toLowerCase());
-          $('sNote').textContent=(itemy?'These are stores that usually carry or rent it — call ahead to check stock. ':'')+'Nearest first.';
-          return;
-        }
-      }
-      if(!navigator.onLine){$('sNote').textContent=loc.length?'No signal — showing your pins and saved places.':'No signal — only your pins and saved places can be searched.';return}
-      $('sNote').textContent='Searching…';
-      const core=cleanQuery(v),useCore=core&&core!==v.toLowerCase().trim();
-      const [on,named]=await Promise.all([onlineSearch(useCore?core:v),useCore||!cat?nameSearch(core||v.toLowerCase()):Promise.resolve([])]);
-      if(seq!==srchSeq)return;
-      const seenN=new Set(named.map(x=>x.name+'|'+x.lat.toFixed(3)));
-      srchList=[...loc,...named,...(on||[]).filter(x=>!seenN.has(x.name+'|'+x.lat.toFixed(3)))];
-      if(named.length>1){$('sRes').innerHTML='';}
-      if(me)srchList.sort((a,b)=>(a.sub==='Your pin'?-1:0)-(b.sub==='Your pin'?-1:0)||0);
-      $('sRes').innerHTML=srchRows(srchList);
-      $('sNote').textContent=on===null&&!srchList.length?'Couldn’t reach the search service.':(srchList.length?'':`Nothing found for “${core||v}”. Try the kind of store, like “pet store”, “hardware” or “feed store”.`);
+        const seen=new Set(),uniq=a=>a.filter(x=>{const k=x.name+'|'+x.lat.toFixed(3);if(seen.has(k))return false;seen.add(k);return true});
+        const places=uniq([...R.ai,...R.cat]);                         // "kinds of places" answers
+        const named=uniq(R.named),web=uniq(R.web),pins=uniq(loc);
+        const nearFirst=cat||R.ai.length?[...places,...pins,...named,...web]:[...pins,...web,...named,...places];
+        srchList=nearFirst.slice(0,60);
+        const all=places.length>1?`<li style="padding:6px 2px"><button class="b-flag" id="sAll" style="width:100%;height:44px;border-radius:12px;font-weight:600">📍 Show all ${places.length} on the map & camera</button></li>`:'';
+        $('sRes').innerHTML=all+srchRows(srchList);
+        if($('sAll'))$('sAll').onclick=()=>{closeSheet();srchShowAll(places,'places')};
+        const still=[...busyPart];
+        let note='';
+        if(cat&&cat.trail)note='';
+        if(still.length)note=`Searching ${still.join(', ')}…`;
+        else if(!srchList.length)note=webFail&&!navigator.onLine?'No signal — only your pins and saved places can be searched.':
+          webFail?'Couldn’t reach the search services — check your signal and try again.':`Nothing found for “${cleanQuery(v)||v}”. Try the kind of store, like “pet store” or “hardware”.`;
+        else if(places.length)note=(aiSay?'🤖 '+aiSay+' · ':'')+'Nearest first. Stores that usually carry it — call ahead to check stock.';
+        if(aiErr)note=aiErr+(note?' · '+note:'');
+        $('sNote').innerHTML=(cat&&cat.trail?'<button class="opt" id="sTrails"><span><span class="ot">🥾 Find trails near you</span><span class="od">Opens the trail planner</span></span></button>':'')+esc(note);
+        if($('sTrails'))$('sTrails').onclick=()=>{closeSheet();showTrails()};
+      };
+      const part=(name,label,fn)=>{busyPart.add(label);draw();
+        return Promise.resolve().then(fn).then(res=>{if(res)R[name]=res}).catch(()=>{if(name==='web')webFail=true})
+          .finally(()=>{busyPart.delete(label);draw()})};
+      draw();
+      if(!navigator.onLine){draw();return}
+      const core=cleanQuery(v);
+      // 1) places by name / address (towns, businesses, roads)
+      part('web','places',async()=>{const r=await onlineSearch(core&&core!==v.toLowerCase()?core:v);if(r===null)throw 0;return r});
+      // 2) kinds of places ("tools", "generator", "camping"…)
+      if(cat&&cat.cats)part('cat','nearby '+CATS[cat.cats[0]].label.toLowerCase(),async()=>{
+        let f=await catSearch(cat.cats,25000).catch(()=>[]);if(seq!==srchSeq)return f;
+        if(f.length<4){R.cat=f;draw();const g=await catSearch(cat.cats,60000).catch(()=>[]);if(g.length>f.length)f=g}
+        return f});
+      // 3) business names and specialties nearby that match the words
+      if(!cat||!cat.cats)part('named','nearby businesses',()=>nameSearch(core||v.toLowerCase()));
+      // 4) smart search, when turned on
+      if(aiKey)part('ai','🤖 smart search',async()=>{
+        let plan;try{plan=await aiPlan(v)}catch(e){if(e&&e.message==='key')aiErr='🤖 Your Claude key was refused — check it under Smart search.';throw e}
+        if(seq!==srchSeq)return [];
+        aiSay=plan.say||'';
+        if(plan.kind==='address'||plan.kind==='named')return plan.words?await nameSearch(plan.words.toLowerCase()):[];
+        return await aiSearch(plan);
+      });
     };
     q.oninput=()=>{clearTimeout(srchT);srchT=setTimeout(run,400)};
     q.onkeydown=e=>{if(e.key==='Enter'){clearTimeout(srchT);run();q.blur()}};
@@ -2827,26 +2828,34 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
       const d=pathOf(flat);
       if(d)h+=`<path d="${d}" fill="none" stroke="#1C252C" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/><path d="${d}" fill="none" stroke="#FFC400" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".95"/>`;
     }
-    if(navAlts&&navAlts.length>1&&!tbtOn){
-      navAlts.forEach((o,k)=>{if(o===navSel)return;const d=pathOf(o.pts);if(!d)return;
-        h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/><path d="${d}" fill="none" stroke="#8C99A6" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
-        // option letter + time on its own stretch (a point far from the chosen route)
-        let lab=o.pts[Math.floor(o.pts.length/2)],best=-1;
-        for(let i=0;i<o.pts.length;i+=Math.max(1,Math.floor(o.pts.length/60))){const q=o.pts[i];let m=1e9;
-          for(let j=0;j<navRoutePts.length;j+=Math.max(1,Math.floor(navRoutePts.length/120))){const r2=navRoutePts[j];m=Math.min(m,Math.abs(q[0]-r2[0])+Math.abs(q[1]-r2[1]))}
-          if(m>best){best=m;lab=q}}
-        const pp=P(lab),t=`${'ABCDEFGH'[k]} · ${fmtDur(o.est.total)}`,w=t.length*7+14;
-        h+=`<g transform="translate(${pp.x.toFixed(1)},${pp.y.toFixed(1)})"><rect x="${(-w/2).toFixed(1)}" y="-11" width="${w.toFixed(1)}" height="22" rx="7" fill="#fff" stroke="#8C99A6" stroke-width="1.5"/><text y="4.5" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12.5" fill="#34444F">${t}</text></g>`;
-      });
-    }
+    const multi=navAlts&&navAlts.length>1&&!tbtOn;
+    if(multi)navAlts.forEach(o=>{if(o===navSel)return;const d=pathOf(o.pts);if(!d)return;
+      h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/><path d="${d}" fill="none" stroke="#8C99A6" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`});
     if(navRoutePts&&navRoutePts.length>1){
       const d=pathOf(navRoutePts);
       h+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
       h+=`<path d="${d}" fill="none" stroke="#1E7FD8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
       if(navGap)h+=`<path d="${pathOf(navGap)}" fill="none" stroke="#1E7FD8" stroke-width="3" stroke-dasharray="2 7" stroke-linecap="round"/>`;
+      h+=routeShields(P);
+    }
+    // time bubbles: one per route, the chosen one in blue (like Apple Maps); tap a line or bubble to switch
+    if(multi){
+      const fastest=Math.min(...navAlts.map(o=>o.est.total)),boxes=[];
+      const order=[...navAlts].sort((a,b)=>(a===navSel)-(b===navSel));   // chosen one drawn last (on top)
+      for(const o of order){
+        const k=navAlts.indexOf(o),lab=altLabelPoint(o),pp=P(lab),sel=o===navSel,fast=o.est.total===fastest;
+        const t1=`${'ABCDEFGH'[k]} · ${fmtDur(o.est.total)}`,t2=fast?'Fastest':'';
+        const w=Math.max(t1.length,t2.length)*7.6+20,hh=t2?40:26;let y=pp.y-hh-10,x=pp.x;
+        for(const bx of boxes)if(Math.abs(bx.x-x)<(bx.w+w)/2&&Math.abs(bx.y-y)<hh+4)y=bx.y-hh-6;
+        boxes.push({x,y,w});o._box={x:x-w/2,y,w,h:hh};
+        const bg=sel?'#1E7FD8':'#fff',fg=sel?'#fff':'#1C252C',bd=sel?'#1E7FD8':'#8C99A6';
+        h+=`<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})"><path d="M${-w/2} 0 h${w} v${hh} h${-(w/2-8)} l-8 9 l-8 -9 h${-(w/2-8)} z" fill="${bg}" stroke="${bd}" stroke-width="1.5" stroke-linejoin="round"/>`+
+          `<text x="0" y="17" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="14" fill="${fg}">${t1}</text>`+
+          (t2?`<text x="0" y="33" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="600" font-size="12" fill="${fg}" opacity=".9">${t2}</text>`:'')+`</g>`;
+      }
     }
     const t=P([nav.lat,nav.lng]);
-    if(me){
+    if(me&&!(navMode==='car'&&navRoutePts&&navRoutePts.length>1)){
       const m=P(meShown()),dx=t.x-m.x,dy=t.y-m.y,len=Math.hypot(dx,dy)||1;
       const sx=m.x+dx/len*Math.min(16,len/2),sy=m.y+dy/len*Math.min(16,len/2);   // start just outside your arrow
       h+=`<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${t.x.toFixed(1)}" y2="${t.y.toFixed(1)}" stroke="#24313B" stroke-width="3" stroke-dasharray="6 8" stroke-linecap="round"/>`;
@@ -2858,6 +2867,45 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
     svg.innerHTML=h;
   }
   function navRedraw(){if(!navRaf)navRaf=requestAnimationFrame(navDraw)}
+  // where to put a route's bubble: the part of it farthest from the other routes (so bubbles don't stack)
+  function altLabelPoint(o){
+    const key=navAlts.map(a=>a.pts.length).join(',');if(o._labKey===key)return o._lab;
+    let lab=o.pts[Math.floor(o.pts.length/2)],best=-1;
+    const others=navAlts.filter(a=>a!==o);
+    for(let i=Math.floor(o.pts.length*0.15);i<o.pts.length*0.85;i+=Math.max(1,Math.floor(o.pts.length/60))){const q=o.pts[i];let m=1e9;
+      for(const a of others)for(let j=0;j<a.pts.length;j+=Math.max(1,Math.floor(a.pts.length/120))){const r2=a.pts[j];m=Math.min(m,Math.abs(q[0]-r2[0])+Math.abs(q[1]-r2[1]))}
+      if(m>best){best=m;lab=q}}
+    o._lab=lab;o._labKey=key;return lab;
+  }
+  // road shields along the chosen route (I-75, US 319, GA 300…), like Apple Maps
+  function routeShields(P){
+    if(!navSel||!navSel.r||!navSel.r.legs)return '';
+    const steps=(navSel.r.legs[0]||{}).steps||[],W=innerWidth,H=innerHeight,placed=[];let h='';
+    const z=map.getZoom(),minKm=z>=11?1.5:z>=9?8:z>=7?25:60;
+    for(const st of steps){
+      const ref=String(st.ref||'').split(';')[0].trim();if(!ref||st.distance<minKm*1000)continue;
+      const g=st.geometry&&st.geometry.coordinates;if(!g||g.length<2)continue;
+      const c=g[Math.floor(g.length/2)],p=P([c[1],c[0]]);if(p.x<10||p.x>W-10||p.y<120||p.y>H-60)continue;
+      if(placed.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<70))continue;placed.push(p);
+      const m=ref.match(/^(I|US|SR|GA|[A-Z]{2})[\s-]?(\d+[A-Z]?)/);if(!m)continue;
+      const num=m[2],kind=m[1];
+      if(kind==='I')h+=`<g transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})"><path d="M-14 -13 h28 v10 q0 14 -14 18 q-14 -4 -14 -18z" fill="#1F4FA8" stroke="#fff" stroke-width="2"/><path d="M-14 -13 h28 v5 h-28z" fill="#C62828"/><text y="5" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="800" font-size="11.5" fill="#fff">${num}</text></g>`;
+      else if(kind==='US')h+=`<g transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})"><path d="M-14 -12 q14 -6 28 0 v12 q0 12 -14 15 q-14 -3 -14 -15z" fill="#fff" stroke="#1C252C" stroke-width="2"/><text y="4" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="800" font-size="11.5" fill="#1C252C">${num}</text></g>`;
+      else h+=`<g transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})"><rect x="-14" y="-11" width="28" height="22" rx="6" fill="#fff" stroke="#1C252C" stroke-width="2"/><text y="4" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="800" font-size="11.5" fill="#1C252C">${num}</text></g>`;
+    }
+    return h;
+  }
+  // tap a route line (or its bubble) on the map to pick it
+  function altAt(cp){
+    if(!navAlts||navAlts.length<2||tbtOn)return null;
+    for(const o of navAlts)if(o._box&&cp.x>=o._box.x&&cp.x<=o._box.x+o._box.w&&cp.y>=o._box.y&&cp.y<=o._box.y+o._box.h+9)return o;
+    let best=null,bd=22;
+    for(const o of navAlts){const pts=o.pts,stp=Math.max(1,Math.floor(pts.length/400));let prev=null;
+      for(let i=0;i<pts.length;i+=stp){const p=map.latLngToContainerPoint(pts[i]);
+        if(prev){const dx=p.x-prev.x,dy=p.y-prev.y,L2=dx*dx+dy*dy;let t=L2?((cp.x-prev.x)*dx+(cp.y-prev.y)*dy)/L2:0;t=Math.max(0,Math.min(1,t));
+          const d=Math.hypot(cp.x-(prev.x+dx*t),cp.y-(prev.y+dy*t));if(d<bd){bd=d;best=o}}prev=p}}
+    return best;
+  }
   map.on('move zoom rotate viewreset resize moveend zoomend rotateend',navRedraw);
   map.on('zoomanim',()=>{if(nav||trkHas()||skHas()||msHas())$('navSvg').style.opacity=0});
   map.on('zoomend',()=>{$('navSvg').style.opacity=1});
@@ -2866,11 +2914,11 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
   // or the title, or tap the handle to switch. When it moves, the map re-fits so the whole route
   // shows in the space above the card.
   let ncPos='open',ncY=0;
-  function ncPeek(){const c=$('navcard'),st=c.querySelector('.nstats');if(!st)return 150;return Math.min(c.offsetHeight,st.offsetTop+st.offsetHeight+14)}
+  function ncPeek(){const g=$('ncGrab');return g?g.offsetHeight+6:44}
   function ncTarget(pos){const H=$('navcard').offsetHeight;return pos==='open'?0:pos==='half'?Math.max(0,Math.round(H*0.5)):Math.max(0,H-ncPeek())}
   function ncSnap(pos,fit=true){
     ncPos=pos;const c=$('navcard');c.classList.remove('dragging');ncY=ncTarget(pos);c.style.transform=ncY?`translateY(${ncY}px)`:'';
-    $('ncHint').textContent=pos==='tucked'?'▲ Slide up for details':'Slide down to see the map';
+    $('ncHint').textContent=pos==='tucked'?(navSel&&navAlts&&navAlts.length>1?`${'ABCDEFGH'[navAlts.indexOf(navSel)]} · ${fmtDur(navSel.est.total)} — slide up for details`:'▲ Slide up for details'):'Slide down to see the map';
     if(pos!=='open')c.scrollTop=0;
     setTimeout(()=>{liftFabs();if(fit)ncFitRoute()},300);
   }
@@ -2954,9 +3002,14 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
     let tot=0;
     (r.legs||[]).forEach(lg=>(lg.steps||[]).forEach(st=>{
       if(!st.distance||!st.duration){tot+=st.duration||0;return}
-      const kmh=st.distance/st.duration*3.6;
-      const f=kmh>=85?0.78:kmh>=72?0.83:kmh>=55?0.9:kmh>=40?0.95:1;   // interstate → highway → town streets
-      st.duration*=f;tot+=st.duration;
+      const kmh=st.distance/st.duration*3.6,ref=String(st.ref||'')+' '+String(st.name||'');
+      let target=0;                                            // typical real-world speed, km/h
+      if(/\bI[\s-]?\d/.test(ref)&&st.distance>2000)target=113; // interstates ≈ 70 mph
+      else if(/\bUS[\s-]?\d/.test(ref)&&kmh>65)target=97;     // 4-lane US highways ≈ 60 mph
+      else if(/\b(SR|GA|FL|AL|TN|SC|NC|State Route|Highway)[\s-]?\d/i.test(ref)&&kmh>65)target=90;
+      else target=kmh*(kmh>=85?1.28:kmh>=72?1.2:kmh>=55?1.11:kmh>=40?1.05:1);
+      if(target>kmh)st.duration=st.distance/(target/3.6);
+      tot+=st.duration;
     }));
     if(tot>0)r.duration=tot;
     return r;
@@ -3087,6 +3140,7 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
       later+`<p class="fine" id="navOptsMore" style="margin:2px 0">${el.dataset.more?el.dataset.more:'Looking for more routes…'}</p><p class="fine" style="margin:2px 0">Traffic is <b>estimated</b> from time of day, day of week and the cities each route passes through — not live.</p>`;
     el.style.display='';
     el.onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;useRoute(navAlts[+b.dataset.k]);optsCard();if(ncPos!=='open')ncSnap(ncPos)};
+    if(ncPos==='tucked')$('ncHint').textContent=navSel?`${'ABCDEFGH'[navAlts.indexOf(navSel)]} · ${fmtDur(navSel.est.total)} — slide up for details`:'▲ Slide up for details';
   }
 
   // ---------- Turn-by-turn directions ----------
@@ -3841,7 +3895,8 @@ out tags center 300;`;
     if(tEd){if(tEd.mode==='add')tEdAddPoint(e.latlng.lat,e.latlng.lng);return}
     if(dlSelecting){if(dlMode==='trail'){dlTrail.push([+e.latlng.lat.toFixed(6),+e.latlng.lng.toFixed(6)]);redrawEdit()}return}
     if($('sheet').classList.contains('show')){closeSheet();return}
-    if(nav){toast('Pins are off while a route is showing — tap Done to drop pins again');return}
+    if(nav){const o=altAt(e.containerPoint);if(o){if(o!==navSel){useRoute(o);optsCard();toast(`Route ${'ABCDEFGH'[navAlts.indexOf(o)]} · ${fmtDur(o.est.total)}`)}return}
+      toast('Pins are off while a route is showing — tap Done to drop pins again');return}
     $('hint').style.opacity=0; newPinAt(e.latlng.lat,e.latlng.lng); });
   $('pinHereBtn').onclick=()=>{ if(!me){toast('No GPS fix yet — tap the map to pin a spot instead');return} newPinAt(me.lat,me.lng); };
   $('listBtn').onclick=showList;
