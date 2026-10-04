@@ -647,7 +647,7 @@ input[type=text]:focus,textarea:focus{border-color:var(--slate);outline:none}
       <button class="opt" id="calOpen"><span><span class="ot">Calibrate compass</span><span class="od">Line up the orange looking beam with the real world</span></span></button>
       <p class="fine">Temperature maps are the latest NASA satellite pass, usually a day or two old, and get blocky when you zoom in close. Free depth maps don't cover most inland lakes — log your own depth and water temp on pins for those.</p>
       <div class="row"><button class="b-primary" id="doneB">Done</button></div>
-      <p class="fine" style="text-align:center">On Point · version 74 (Apple-style route picking)</p>`);
+      <p class="fine" style="text-align:center">On Point · version 75 (smoother route map)</p>`);
     $('bases').onclick=e=>{const b=e.target.closest('[data-base]');if(!b)return;layerState.base=b.dataset.base;applyLayers();
       $('bases').querySelectorAll('[data-base]').forEach(x=>x.setAttribute('aria-checked',x===b));};
     $('ovs').onclick=e=>{const b=e.target.closest('[data-ov]');if(!b)return;const k=b.dataset.ov;
@@ -1573,7 +1573,7 @@ way["highway"][~"^(name|ref)$"~"."];out geom 900;`;
   }
   function arDiag(pose,inView,shown){
     const el=$('arDiag');if(!el)return;
-    el.textContent=`v74 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
+    el.textContent=`v75 · GPS ${me?'✓ ±'+Math.round(me.acc)+'m':'✗'} · compass ${compassH==null?'✗ (not allowed?)':Math.round(compassH)+'°'} · tilt ${pose?Math.round(pose.pitch)+'°':'?'}
 `+
       `loaded: ${arPois.length} places, ${arLocal.length} nearby, ${arRoads.length} roads · in view ${inView} · shown ${shown}
 `+
@@ -2800,7 +2800,7 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
     const hasT=trkHas()||skHas()||msHas()||propHas()||ownHas();
     if(!nav&&!hasT){svg.innerHTML='';return}
     const P=ll=>map.latLngToContainerPoint(ll);
-    const pathOf=pts=>{let d='',last=null;for(const ll of pts){if(!ll){last=null;continue}const p=P(ll);
+    const pathOf=pts0=>{const pts=simplifyFor(pts0);let d='',last=null;for(const ll of pts){if(!ll){last=null;continue}const p=P(ll);
         if(last&&Math.abs(p.x-last.x)+Math.abs(p.y-last.y)<1.5)continue;d+=(last?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);last=p}return d};
     let h=hasT?ownSvg(pathOf,P)+propSvg(pathOf)+skSvg(pathOf)+trkSvg(pathOf,P)+msSvg(pathOf,P):'';
     if(!nav){svg.innerHTML=h;return}
@@ -2838,20 +2838,30 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
       if(navGap)h+=`<path d="${pathOf(navGap)}" fill="none" stroke="#1E7FD8" stroke-width="3" stroke-dasharray="2 7" stroke-linecap="round"/>`;
       h+=routeShields(P);
     }
-    // time bubbles: one per route, the chosen one in blue (like Apple Maps); tap a line or bubble to switch
+    // time bubbles: tidy pills, one per route, never overlapping. The chosen route's is blue; tap a
+    // line or a bubble to switch. Each bubble tries several spots along its route and takes the first
+    // free one; if a route has no free spot (zoomed far out), its bubble is left off until you zoom in.
     if(multi){
-      const fastest=Math.min(...navAlts.map(o=>o.est.total)),boxes=[];
-      const order=[...navAlts].sort((a,b)=>(a===navSel)-(b===navSel));   // chosen one drawn last (on top)
+      const fastest=Math.min(...navAlts.map(o=>o.est.total)),placed=[],W=innerWidth,H=innerHeight;
+      const card=$('navcard').getBoundingClientRect(),bottomLimit=Math.min(H-8,card.top-6),topLimit=($('tbt').style.display===''?150:118);
+      const order=[navSel,...navAlts.filter(o=>o!==navSel)];
+      navAlts.forEach(o=>o._box=null);
       for(const o of order){
-        const k=navAlts.indexOf(o),lab=altLabelPoint(o),pp=P(lab),sel=o===navSel,fast=o.est.total===fastest;
-        const t1=`${'ABCDEFGH'[k]} · ${fmtDur(o.est.total)}`,t2=fast?'Fastest':'';
-        const w=Math.max(t1.length,t2.length)*7.6+20,hh=t2?40:26;let y=pp.y-hh-10,x=pp.x;
-        for(const bx of boxes)if(Math.abs(bx.x-x)<(bx.w+w)/2&&Math.abs(bx.y-y)<hh+4)y=bx.y-hh-6;
-        boxes.push({x,y,w});o._box={x:x-w/2,y,w,h:hh};
-        const bg=sel?'#1E7FD8':'#fff',fg=sel?'#fff':'#1C252C',bd=sel?'#1E7FD8':'#8C99A6';
-        h+=`<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})"><path d="M${-w/2} 0 h${w} v${hh} h${-(w/2-8)} l-8 9 l-8 -9 h${-(w/2-8)} z" fill="${bg}" stroke="${bd}" stroke-width="1.5" stroke-linejoin="round"/>`+
-          `<text x="0" y="17" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="14" fill="${fg}">${t1}</text>`+
-          (t2?`<text x="0" y="33" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="600" font-size="12" fill="${fg}" opacity=".9">${t2}</text>`:'')+`</g>`;
+        const k=navAlts.indexOf(o),sel=o===navSel,fast=o.est.total===fastest;
+        const time=fmtDur(o.est.total).replace(' min','m').replace(' h ','h '),extra=sel&&fast?' · Fastest':(!sel&&fast?' ⚡':'');
+        const txt=time+extra,w=Math.round(txt.length*7.4+42),hh=28;
+        let spot=null;
+        for(const ll of altCandidates(o)){const p=P(ll),x=p.x-w/2,y=p.y-hh-12;
+          if(x<6||x+w>W-6||y<topLimit||y+hh+12>bottomLimit)continue;
+          if(placed.some(b=>x<b.x+b.w+6&&x+w+6>b.x&&y<b.y+b.h+6&&y+hh+6>b.y))continue;
+          spot={x,y,px:p.x,py:p.y};break}
+        if(!spot)continue;
+        placed.push({x:spot.x,y:spot.y,w,h:hh});o._box={x:spot.x,y:spot.y,w,h:hh};
+        const bg=sel?'#1E7FD8':'#fff',fg=sel?'#fff':'#1C252C',circ=sel?'#fff':'#8C99A6',lt=sel?'#1E7FD8':'#fff';
+        h+=`<g transform="translate(${spot.x.toFixed(1)},${spot.y.toFixed(1)})" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.28))">`+
+          `<path d="M14 0 H${w-14} A14 14 0 0 1 ${w-14} ${hh} H${w/2+7} L${w/2} ${hh+9} L${w/2-7} ${hh} H14 A14 14 0 0 1 14 0 Z" fill="${bg}" ${sel?'':'stroke="#C9D1D8" stroke-width="1"'}/>`+
+          `<circle cx="15" cy="14" r="10" fill="${circ}"/><text x="15" y="18.5" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="800" font-size="12.5" fill="${lt}">${'ABCDEFGH'[k]}</text>`+
+          `<text x="31" y="19" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="14" fill="${fg}">${txt}</text></g>`;
       }
     }
     const t=P([nav.lat,nav.lng]);
@@ -2867,6 +2877,28 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
     svg.innerHTML=h;
   }
   function navRedraw(){if(!navRaf)navRaf=requestAnimationFrame(navDraw)}
+  // Keep only the points that matter at this zoom (about one every 2 screen pixels). Cached per
+  // line and zoom level, so panning and pinching stay smooth even with 8 long routes on screen.
+  function simplifyFor(pts){
+    if(!pts||pts.length<200)return pts;
+    const z=Math.round(map.getZoom()),c=pts._simp||(Object.defineProperty(pts,'_simp',{value:{},enumerable:false}),pts._simp);
+    if(c[z])return c[z];
+    const lat=(pts.find(Boolean)||[0])[0],tol=40075016*Math.cos(lat*Math.PI/180)/2**(z+8)*2,out=[];let last=null;
+    for(let i=0;i<pts.length;i++){const q=pts[i];if(!q){out.push(null);last=null;continue}
+      if(!last||i===pts.length-1||!pts[i+1]){out.push(q);last=q;continue}
+      const dl=(q[0]-last[0])*110540,dg=(q[1]-last[1])*111320*Math.cos(lat*Math.PI/180);
+      if(dl*dl+dg*dg>=tol*tol){out.push(q);last=q}}
+    return c[z]=out;
+  }
+  // spots along a route where its bubble could go, best first (parts far from the other routes)
+  function altCandidates(o){
+    const key=navAlts.map(a=>a.pts.length).join(',');if(o._candKey===key)return o._cand;
+    const others=navAlts.filter(a=>a!==o),cand=[];
+    for(let i=Math.floor(o.pts.length*0.1);i<o.pts.length*0.9;i+=Math.max(1,Math.floor(o.pts.length/40))){const q=o.pts[i];let m=1e9;
+      for(const a of others)for(let j=0;j<a.pts.length;j+=Math.max(1,Math.floor(a.pts.length/100))){const r2=a.pts[j];m=Math.min(m,Math.abs(q[0]-r2[0])+Math.abs(q[1]-r2[1]))}
+      cand.push([q,m])}
+    o._cand=cand.sort((a,b)=>b[1]-a[1]).map(c=>c[0]);o._candKey=key;return o._cand;
+  }
   // where to put a route's bubble: the part of it farthest from the other routes (so bubbles don't stack)
   function altLabelPoint(o){
     const key=navAlts.map(a=>a.pts.length).join(',');if(o._labKey===key)return o._lab;
@@ -3241,7 +3273,9 @@ Rules: "filters" are Overpass filters using real OSM tags, form nwr["key"="value
       if(st.maneuver.type==='arrive'&&toTurn<20){setTimeout(()=>{if(tbtOn){tbtStop();toast(`You’ve arrived at ${dest}`)}},4000)}
     }
     // off the route? find a new one (twice in a row, at most every 15 s)
-    if(a.off>60){tbtOff++;if(tbtOff>=2&&Date.now()-tbtLastReroute>15000){tbtOff=0;tbtLastReroute=Date.now();if(tbtOn)say('Rerouting');navRoute()}}else tbtOff=0;
+    // off-route re-routing only while directions are running (not while you're choosing a route —
+    // starting from a driveway or a field is "off the road" and kept triggering a reload)
+    if(tbtOn&&a.off>60){tbtOff++;if(tbtOff>=2&&Date.now()-tbtLastReroute>15000){tbtOff=0;tbtLastReroute=Date.now();say('Rerouting');navRoute()}}else tbtOff=0;
   }
   $('navGo').onclick=tbtStart;
   // On a trip (driving directions, or a driving route of more than ~5 mi) the camera and the
@@ -3511,7 +3545,8 @@ out tags center 300;`;
     }
     const d=haversine(me,nav),brg=bearingTo(me,nav);
     $('navStraight').textContent=`${fmtDist(d)} ${CARD[Math.round(brg/22.5)%16]}`;
-    if(navRouteFrom&&haversine(me,navRouteFrom)>250&&Date.now()-navLastRoute>20000)navRoute();
+    // while planning, only re-plan if you've actually driven a good way (2+ mi); during directions, 250 m
+    if(navRouteFrom&&haversine(me,navRouteFrom)>(tbtOn?250:3200)&&Date.now()-navLastRoute>(tbtOn?20000:120000))navRoute();
     if(d<25&&!nav.arrived){nav.arrived=true;toast(`You’ve reached ${nav.name}`)}
     tripLive();tbtUpdate();
     navRedraw();
